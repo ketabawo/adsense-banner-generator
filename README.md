@@ -47,13 +47,13 @@ npm run dev
 cp .env.deploy.example .env.deploy
 ```
 
-`.env.deploy` に、CORESERVERのコントロールパネルで確認できるFTP情報と、独自ドメインに割り当てた公開ディレクトリを設定してください。
+`.env.deploy` に、CORESERVERのコントロールパネルで確認できるFTP情報と公開ディレクトリを設定してください。対象サイト専用のサブFTPアカウントを使う場合、ログイン後の `/` がすでにDocumentRootになるため `FTP_REMOTE_DIR=/` とします。
 
 ```dotenv
 FTP_HOST=sXXX.coreserver.jp
 FTP_USER=your-account
 FTP_PASSWORD=your-password
-FTP_REMOTE_DIR=/public_html/example.com
+FTP_REMOTE_DIR=/
 FTP_PORT=21
 FTP_SECURE=true
 ```
@@ -65,6 +65,8 @@ npm run deploy
 ```
 
 `.env.deploy` はGitの管理対象外です。デプロイ処理は公開先の既存ファイルを削除せず、同名ファイルのみ上書きします。
+
+メインFTPアカウントを使う場合のみ、`FTP_REMOTE_DIR=/public_html/example.com` のようにDocumentRootのフルパスを指定します。セキュリティ上は、対象サイトだけにアクセスできるサブFTPアカウントを推奨します。
 
 ## 動作環境
 
