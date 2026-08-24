@@ -35,6 +35,36 @@ npm run dev
 | `npm run check` | Svelte／TypeScriptの型チェック |
 | `npm run build` | プロダクション用にビルド |
 | `npm run preview` | ビルド結果をローカルで確認 |
+| `npm run deploy` | 静的ビルド後、CORESERVERへFTPSでアップロード |
+
+## CORESERVERへのデプロイ
+
+本アプリは `adapter-static` を使用し、SvelteKitを静的サイトとして `build` ディレクトリへ出力します。デプロイ時はCORESERVERが案内する明示的FTPS（ポート21）でファイルをアップロードします。
+
+最初にデプロイ設定ファイルを作成します。
+
+```bash
+cp .env.deploy.example .env.deploy
+```
+
+`.env.deploy` に、CORESERVERのコントロールパネルで確認できるFTP情報と、独自ドメインに割り当てた公開ディレクトリを設定してください。
+
+```dotenv
+FTP_HOST=sXXX.coreserver.jp
+FTP_USER=your-account
+FTP_PASSWORD=your-password
+FTP_REMOTE_DIR=/public_html/example.com
+FTP_PORT=21
+FTP_SECURE=true
+```
+
+設定後、次のコマンドでビルドからアップロードまで実行できます。
+
+```bash
+npm run deploy
+```
+
+`.env.deploy` はGitの管理対象外です。デプロイ処理は公開先の既存ファイルを削除せず、同名ファイルのみ上書きします。
 
 ## 動作環境
 
