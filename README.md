@@ -1,5 +1,65 @@
 # AdSense Banner Generator
 
+Google AdSense／ディスプレイ広告向けのバナーを、ブラウザ上で作成してPNG形式で書き出せるSvelteKitアプリケーションです。
+
+## 開発環境
+
+| 項目 | 内容 |
+| --- | --- |
+| フレームワーク | SvelteKit 2 / Svelte 5 |
+| 言語 | TypeScript 5 |
+| ビルドツール | Vite 7 |
+| 描画 | HTML Canvas API |
+| スタイル | Svelteコンポーネント内CSS |
+| パッケージ管理 | npm |
+| 開発確認環境 | Node.js 22.15.0 / npm 10.9.2 |
+
+Node.jsは、Vite 7が動作する **22.12以上**を推奨します。
+
+## セットアップ
+
+```bash
+git clone https://github.com/ketabawo/adsense-banner-generator.git
+cd adsense-banner-generator
+npm install
+npm run dev
+```
+
+開発サーバー起動後、ターミナルに表示されるURL（通常は `http://localhost:5173`）をブラウザで開きます。
+
+## 開発コマンド
+
+| コマンド | 用途 |
+| --- | --- |
+| `npm run dev` | 開発サーバーを起動 |
+| `npm run check` | Svelte／TypeScriptの型チェック |
+| `npm run build` | プロダクション用にビルド |
+| `npm run preview` | ビルド結果をローカルで確認 |
+
+## 動作環境
+
+- JavaScriptとHTML Canvas APIが利用できるモダンブラウザ
+- PCでの利用を推奨
+- Chrome／Edge／Firefox／Safariの現行版を想定
+- 画像の読み込み、Canvas描画、PNG生成はブラウザ内で完結
+- ユーザー登録、データベース、サーバーへの画像送信は不要
+
+アップロード対応形式はPNG・JPEG・WebP、出力形式はPNGです。
+
+## プロジェクト構成
+
+```text
+src/
+├─ lib/
+│  ├─ banner/       # Canvas描画、サイズ定義、ダウンロード処理
+│  ├─ components/   # 編集パネルとプレビューUI
+│  └─ types/        # バナー状態の型定義
+└─ routes/
+   └─ +page.svelte  # メイン画面
+```
+
+## MVP仕様書
+
 > [!NOTE]
 > 初回MVPでは **Simpleテンプレートのみ**を実装し、Photo／Split、グラデーション、ロゴ、Google FontsはPhase 2とします。
 > UIは白〜淡いグレー＋青系アクセント、フォントはOS標準の日本語フォントを使用します。
