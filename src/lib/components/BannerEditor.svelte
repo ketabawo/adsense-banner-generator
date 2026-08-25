@@ -1,10 +1,10 @@
 <script lang="ts">
   import Field from './Field.svelte';
   import { BANNER_SIZES } from '$lib/banner/sizes';
-  import type { BannerState, TextAlign } from '$lib/types/banner';
+  import type { CreativeState, TextAlign } from '$lib/types/creative';
 
   let { state, onImageUpload, imageError }: {
-    state: BannerState;
+    state: CreativeState;
     onImageUpload: (event: Event) => void;
     imageError: string;
   } = $props();

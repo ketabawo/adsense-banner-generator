@@ -1,6 +1,6 @@
-import type { BannerSize } from '$lib/types/banner';
+import type { CreativeSize } from '$lib/types/creative';
 
-export const BANNER_SIZES: BannerSize[] = [
+export const BANNER_SIZES: CreativeSize[] = [
   { id: '300x250', width: 300, height: 250, label: '300 × 250（レクタングル）' },
   { id: '336x280', width: 336, height: 280, label: '336 × 280（ラージレクタングル）' },
   { id: '728x90', width: 728, height: 90, label: '728 × 90（ビッグバナー）' },

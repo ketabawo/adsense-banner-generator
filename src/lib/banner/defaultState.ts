@@ -1,7 +1,7 @@
 import { BANNER_SIZES } from './sizes';
-import type { BannerState } from '$lib/types/banner';
+import type { CreativeState } from '$lib/types/creative';
 
-export function createDefaultState(): BannerState {
+export function createDefaultCreativeState(): CreativeState {
   return {
     size: BANNER_SIZES[0],
     background: { type: 'color', color: '#2563eb', overlayOpacity: 0.38 },

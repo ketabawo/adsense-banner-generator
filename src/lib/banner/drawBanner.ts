@@ -1,4 +1,4 @@
-import type { BannerState } from '$lib/types/banner';
+import type { CreativeState } from '$lib/types/creative';
 
 export type DrawResult = { textOverflow: boolean };
 
@@ -23,7 +23,7 @@ function getLayout(width: number, height: number) {
   return { compact, padding, contentWidth: width - padding * 2 };
 }
 
-export function drawBanner(ctx: CanvasRenderingContext2D, state: BannerState, image?: HTMLImageElement): DrawResult {
+export function drawBanner(ctx: CanvasRenderingContext2D, state: CreativeState, image?: HTMLImageElement): DrawResult {
   const { width, height } = state.size;
   const { compact, padding, contentWidth } = getLayout(width, height);
   ctx.clearRect(0, 0, width, height);

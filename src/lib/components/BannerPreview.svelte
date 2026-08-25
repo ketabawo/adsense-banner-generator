@@ -2,14 +2,14 @@
   import { tick } from 'svelte';
   import { drawBanner } from '$lib/banner/drawBanner';
   import { downloadBanner } from '$lib/banner/downloadBanner';
-  import type { BannerState } from '$lib/types/banner';
+  import type { CreativeState } from '$lib/types/creative';
 
-  let { banner, backgroundImage }: { banner: BannerState; backgroundImage?: HTMLImageElement } = $props();
+  let { creative, backgroundImage }: { creative: CreativeState; backgroundImage?: HTMLImageElement } = $props();
   let canvas: HTMLCanvasElement;
   let textOverflow = $state(false);
 
   $effect(() => {
-    JSON.stringify(banner);
+    JSON.stringify(creative);
     backgroundImage;
     void render();
   });
@@ -17,32 +17,32 @@
   async function render() {
     await tick();
     if (!canvas) return;
-    canvas.width = banner.size.width;
-    canvas.height = banner.size.height;
+    canvas.width = creative.size.width;
+    canvas.height = creative.size.height;
     const ctx = canvas.getContext('2d');
-    if (ctx) textOverflow = drawBanner(ctx, banner, backgroundImage).textOverflow;
+    if (ctx) textOverflow = drawBanner(ctx, creative, backgroundImage).textOverflow;
   }
 
   function download() {
-    if (!banner.headline.text.trim()) return;
-    downloadBanner(canvas, banner.size.width, banner.size.height);
+    if (!creative.headline.text.trim()) return;
+    downloadBanner(canvas, creative.size.width, creative.size.height);
   }
 </script>
 
 <div class="preview-card">
   <div class="preview-head">
-    <div><span>ライブプレビュー</span><small>{banner.size.width} × {banner.size.height}px</small></div>
+    <div><span>ライブプレビュー</span><small>{creative.size.width} × {creative.size.height}px</small></div>
     <span class="live"><i></i>リアルタイム</span>
   </div>
   <div class="stage">
-    <canvas bind:this={canvas} aria-label="バナープレビュー"></canvas>
+    <canvas bind:this={canvas} aria-label="Creativeプレビュー"></canvas>
   </div>
   <div class="status">
-    {#if !banner.headline.text.trim()}<p class="warning">メインコピーを入力してください。</p>{/if}
-    {#if banner.cta.enabled && !banner.cta.text.trim()}<p class="warning">CTAテキストを入力してください。</p>{/if}
+    {#if !creative.headline.text.trim()}<p class="warning">メインコピーを入力してください。</p>{/if}
+    {#if creative.cta.enabled && !creative.cta.text.trim()}<p class="warning">CTAテキストを入力してください。</p>{/if}
     {#if textOverflow}<p class="warning">テキストが表示領域を超えています。文字数かサイズを調整してください。</p>{/if}
   </div>
-  <button class="download" disabled={!banner.headline.text.trim()} onclick={download}>
+  <button class="download" disabled={!creative.headline.text.trim()} onclick={download}>
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 5-5m-5 5-5-5M5 20h14" /></svg>
     PNGをダウンロード
   </button>

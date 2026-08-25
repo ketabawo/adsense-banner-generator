@@ -1,9 +1,10 @@
 <script lang="ts">
   import BannerEditor from '$lib/components/BannerEditor.svelte';
   import BannerPreview from '$lib/components/BannerPreview.svelte';
-  import { createDefaultState } from '$lib/banner/defaultState';
+  import { createDefaultCreativeState } from '$lib/banner/defaultState';
 
-  let banner = $state(createDefaultState());
+  // Manual controls and future AI commands must update this same state object.
+  let creative = $state(createDefaultCreativeState());
   let backgroundImage = $state<HTMLImageElement | undefined>();
   let imageError = $state('');
 
@@ -21,7 +22,7 @@
     const image = new Image();
     image.onload = () => {
       backgroundImage = image;
-      banner.background.image = objectUrl;
+      creative.background.image = objectUrl;
     };
     image.onerror = () => {
       URL.revokeObjectURL(objectUrl);
@@ -31,25 +32,25 @@
   }
 </script>
 
-<svelte:head><title>AdBanner Studio | 広告バナー作成ツール</title></svelte:head>
+<svelte:head><title>studio.ketabawo.asia | Creative制作</title></svelte:head>
 
 <header>
-  <div class="brand"><span>Ad</span><strong>Banner Studio</strong><em>MVP</em></div>
-  <p>かんたん広告バナー作成ツール</p>
+  <div class="brand"><span>AI</span><strong>studio.ketabawo.asia</strong><em>Creative MVP</em></div>
+  <p>AI広告運用プラットフォーム</p>
 </header>
 
 <main>
   <div class="intro">
-    <div><h1>バナーを作成</h1><p>項目を設定するだけで、すぐに広告バナーを作成できます。</p></div>
+    <div><h1>Creativeを作成</h1><p>広告運用に使うCreativeを、項目を設定して作成できます。</p></div>
     <div class="privacy"><span>✓</span><div><strong>ブラウザだけで完結</strong><small>アップロード画像は外部へ送信されません</small></div></div>
   </div>
   <div class="workspace">
-    <BannerEditor state={banner} {imageError} onImageUpload={handleImageUpload} />
-    <BannerPreview {banner} {backgroundImage} />
+    <BannerEditor state={creative} {imageError} onImageUpload={handleImageUpload} />
+    <BannerPreview {creative} {backgroundImage} />
   </div>
 </main>
 
-<footer>AdBanner Studio <span>•</span> ブラウザで完結する無料バナー作成ツール</footer>
+<footer>studio.ketabawo.asia <span>•</span> Creative制作モジュール</footer>
 
 <style>
   :global(*) { box-sizing: border-box; }
