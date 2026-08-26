@@ -1,6 +1,6 @@
 # studio.ketabawo.asia
 
-AIを活用した広告運用プラットフォームです。現在の実装は、プラットフォーム全体のMVPではなく、広告用画像を作成・編集する **Creative制作モジュールのMVP** です。
+個人広告主がCreativeを作成し、Google Adsへ出稿・計測し、AIと相談しながら改善するための広告運用支援ツールです。現在は、その最初の縦切りとして **Campaign作成とCreative登録** まで実装しています。
 
 ## プロダクト方針
 
@@ -20,9 +20,26 @@ Creative（studio制作 / 外部アップロード / 再利用）
 
 studio制作Creativeは編集可能な元データを保持できるため、将来的に「広告実績 → AI分析 → Creative修正 → 再配信」をシームレスにつなげられる点を独自価値とします。
 
-## 現在のスコープ
+## MVPのゴール
 
-実装済みのCreative制作MVPを維持します。
+```text
+Campaign作成 → Creative作成 → Google Ads入稿 → 計測
+    → Dashboard → AIとの相談 → 変更案確認 → 承認後に反映
+```
+
+複数クライアント・複数媒体・権限管理・承認フロー・完全自動最適化はMVP対象外です。
+
+## 現在の実装範囲
+
+実装済み：
+
+- Campaignの基本設定
+- CampaignとCreativeの関連付け
+- ブラウザ内へのCampaign下書き保存
+- Campaign一覧からの選択・再編集・上書き保存
+- Google Adsディスプレイ広告の最小設定
+- 入稿前Review（実API送信は未実装）
+- Creative制作MVP
 
 - Canvasによるリアルタイムプレビュー
 - 単色背景、背景画像、オーバーレイ
@@ -30,9 +47,9 @@ studio制作Creativeは編集可能な元データを保持できるため、将
 - 配色、文字サイズ、文字揃え、太字、角丸
 - 主要な広告サイズの切り替え
 - PNG出力
-- PNG・JPEG・WebPの背景画像読み込み
+- PNG・JPEG・WebPの背景画像読み込みと下書きへの保持
 
-現時点ではログイン、クラウド保存、外部Creative管理、広告入稿、Campaign管理、実績取得、AIチャットを実装しません。
+未実装：Google Ads連携、実績取得、Dashboard、AI Campaign Assistant、Execution Plan、クラウド保存、ログイン。
 
 ## 設計原則
 
@@ -112,13 +129,13 @@ src/
 
 ## ロードマップ上の境界
 
-次の段階では必要になった機能だけを追加します。
+次の段階では、広告運用サイクルを縦に一周させるために必要な機能だけを追加します。
 
-1. Creativeの保存・一覧・外部画像アップロード
-2. Preview + Chatと、同一`CreativeState`に対するAI操作
-3. Campaign / Adとの関連付けと広告入稿
-4. Performanceデータ取得、AI分析、改善提案
-5. 承認と予算上限を伴う運用支援・自動化
+1. Campaign一覧・詳細・編集
+2. Google Ads Adapterと入稿Review
+3. Performanceデータ取得とDashboard
+4. AIによる状況説明・相談・Recommendation
+5. Execution Planの確認、承認後のGoogle Ads反映、Action Log
 
 将来機能のための空実装や、広告媒体ごとの仕様を現段階でドメインモデルへ固定することは避けます。
 
