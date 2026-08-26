@@ -191,11 +191,13 @@
   </div>
   <CampaignList {campaigns} activeId={editingId} onCreate={createCampaign} onEdit={editCampaign} />
   <CampaignSetup {draft} />
-  <div class="creative-title"><span>2</span><div><h2>Creativeを作成</h2><p>Campaignに登録するバナーを編集します。</p></div></div>
-  <div class="workspace">
-    <BannerEditor state={creative} {imageError} onImageUpload={handleImageUpload} />
-    <BannerPreview {creative} {backgroundImage} />
-  </div>
+  <section class="creative-step">
+    <div class="creative-title"><span>2</span><div><h2>Creativeを作成</h2><p>Campaignに登録するバナーを編集します。</p></div></div>
+    <div class="workspace">
+      <BannerEditor state={creative} {imageError} onImageUpload={handleImageUpload} />
+      <BannerPreview {creative} {backgroundImage} />
+    </div>
+  </section>
   <GoogleAdsSetup settings={googleAds} />
   <div class="save-area">
     <div><strong>入稿内容を確認</strong><p>Campaign・Creative・Google Ads設定をReviewしてから保存します。</p></div>
@@ -230,7 +232,8 @@
   .privacy div { display: grid; gap: 2px; }
   .privacy strong { color: #047857; font-size: 10px; }
   .privacy small { color: #6b9a86; font-size: 9px; }
-  .creative-title { display: flex; align-items: center; gap: 11px; margin: 28px 0 16px; }
+  .creative-step { margin-top: 24px; padding: 22px; border: 1px solid #dbe3ef; border-radius: 16px; background: white; box-shadow: 0 8px 24px #0f172a08; }
+  .creative-title { display: flex; align-items: center; gap: 11px; margin-bottom: 18px; }
   .creative-title > span { display: grid; width: 30px; height: 30px; place-items: center; border-radius: 9px; background: #2563eb; color: white; font-size: 13px; font-weight: 800; }
   .creative-title h2, .creative-title p { margin: 0; }
   .creative-title h2 { font-size: 16px; }
@@ -246,5 +249,5 @@
   footer { padding: 22px; border-top: 1px solid #e2e8f0; color: #94a3b8; font-size: 10px; text-align: center; }
   footer span { margin: 0 7px; color: #cbd5e1; }
   @media (max-width: 900px) { .workspace { grid-template-columns: 1fr; } .intro { gap: 18px; } }
-  @media (max-width: 600px) { header { padding: 0 16px; } header p { display: none; } main { width: calc(100% - 28px); padding-top: 24px; } .intro { align-items: flex-start; flex-direction: column; } .privacy { width: 100%; } .save-area { align-items: stretch; flex-direction: column; } }
+  @media (max-width: 600px) { header { padding: 0 16px; } header p { display: none; } main { width: calc(100% - 28px); padding-top: 24px; } .intro { align-items: flex-start; flex-direction: column; } .privacy { width: 100%; } .creative-step { padding: 14px; } .save-area { align-items: stretch; flex-direction: column; } }
 </style>
