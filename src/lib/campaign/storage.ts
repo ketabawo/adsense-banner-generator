@@ -30,9 +30,11 @@ function isCreativeSource(value: unknown) {
     const asset = value.asset;
     return isRecord(asset)
       && typeof asset.url === 'string'
-      && typeof asset.mimeType === 'string'
+      && ['image/png', 'image/jpeg', 'image/webp'].includes(String(asset.mimeType))
       && typeof asset.width === 'number'
-      && typeof asset.height === 'number';
+      && asset.width > 0
+      && typeof asset.height === 'number'
+      && asset.height > 0;
   }
   return false;
 }

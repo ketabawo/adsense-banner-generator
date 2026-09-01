@@ -5,16 +5,23 @@
   import CampaignList from '$lib/components/CampaignList.svelte';
   import GoogleAdsSetup from '$lib/components/GoogleAdsSetup.svelte';
   import CampaignReview from '$lib/components/CampaignReview.svelte';
+  import CreativeSourceSelector from '$lib/components/CreativeSourceSelector.svelte';
+  import UploadedCreativeEditor from '$lib/components/UploadedCreativeEditor.svelte';
   import { createDefaultCreativeState } from '$lib/banner/defaultState';
-  import { validateImageFile } from '$lib/banner/imageUpload';
+  import { isSupportedBannerSize, validateImageFile } from '$lib/banner/imageUpload';
   import { loadCampaigns, saveCampaigns } from '$lib/campaign/storage';
   import { settingsForObjective, validateCampaignDraft, withoutCampaign } from '$lib/campaign/rules';
   import type { Campaign, CampaignDraft, GoogleAdsDraft } from '$lib/types/campaign';
+  import type { CreativeMode, CreativeSource, UploadedCreativeAsset } from '$lib/types/creative';
 
   // Manual controls and future AI commands must update this same state object.
   let creative = $state(createDefaultCreativeState());
   let backgroundImage = $state<HTMLImageElement | undefined>();
   let imageError = $state('');
+  let creativeMode = $state<CreativeMode>('studio');
+  let creativeName = $state('');
+  let uploadedAsset = $state<UploadedCreativeAsset | undefined>();
+  let uploadError = $state('');
   let campaigns = $state<Campaign[]>([]);
   let saveMessage = $state('');
   let dateError = $state('');
@@ -33,7 +40,7 @@
   let savedSnapshot = $state('');
 
   function currentSnapshot() {
-    return JSON.stringify({ draft, googleAds, creative });
+    return JSON.stringify({ draft, googleAds, creativeMode, creativeName, creative, uploadedAsset });
   }
 
   let hasUnsavedChanges = $derived(savedSnapshot !== '' && currentSnapshot() !== savedSnapshot);
@@ -58,6 +65,72 @@
 
   function syncObjective(objective: CampaignDraft['objective']) {
     googleAds.bidding = settingsForObjective(objective).bidding;
+  }
+
+  function selectCreativeMode(mode: CreativeMode) {
+    creativeMode = mode;
+    uploadError = '';
+    if (!creativeName.trim()) creativeName = draft.name.trim() ? `${draft.name.trim()} Creative` : '';
+  }
+
+  function handleCompletedCreativeUpload(event: Event) {
+    const input = event.currentTarget as HTMLInputElement;
+    const file = input.files?.[0];
+    uploadError = '';
+    if (!file) return;
+    uploadError = validateImageFile(file);
+    if (uploadError) {
+      input.value = '';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const url = String(reader.result);
+      const image = new Image();
+      image.onload = () => {
+        if (!isSupportedBannerSize(image.naturalWidth, image.naturalHeight)) {
+          uploadError = `未対応サイズです。主要サイズ（300×250、336×280、728×90など）の画像を選択してください。`;
+          input.value = '';
+          return;
+        }
+        let storedUrl = url;
+        let storedMimeType = file.type as UploadedCreativeAsset['mimeType'];
+        if (storedUrl.length * 2 > 2_500_000) {
+          const canvas = document.createElement('canvas');
+          canvas.width = image.naturalWidth;
+          canvas.height = image.naturalHeight;
+          const context = canvas.getContext('2d');
+          if (!context) {
+            uploadError = '画像を処理できませんでした。別の画像をお試しください。';
+            return;
+          }
+          context.drawImage(image, 0, 0);
+          storedUrl = canvas.toDataURL('image/webp', 0.92);
+          storedMimeType = 'image/webp';
+          if (storedUrl.length * 2 > 2_500_000) {
+            uploadError = 'ブラウザ保存用に圧縮しても画像が大きすぎます。別の画像をお試しください。';
+            input.value = '';
+            return;
+          }
+        }
+        uploadedAsset = {
+          url: storedUrl,
+          mimeType: storedMimeType,
+          width: image.naturalWidth,
+          height: image.naturalHeight
+        };
+        if (!creativeName.trim()) creativeName = file.name.replace(/\.[^.]+$/, '');
+      };
+      image.onerror = () => uploadError = '画像を読み込めませんでした。別の画像をお試しください。';
+      image.src = url;
+    };
+    reader.onerror = () => uploadError = '画像を読み込めませんでした。別の画像をお試しください。';
+    reader.readAsDataURL(file);
+  }
+
+  function currentCreativeSource(): CreativeSource | undefined {
+    if (creativeMode === 'studio') return { type: 'studio', state: $state.snapshot(creative) };
+    return uploadedAsset ? { type: 'upload', asset: $state.snapshot(uploadedAsset) } : undefined;
   }
 
   function handleImageUpload(event: Event) {
@@ -115,6 +188,15 @@
 
   function openReview() {
     if (!validateCampaign()) return;
+    if (creativeMode === 'upload' && !creativeName.trim()) {
+      saveMessage = 'Creative名を入力してください。';
+      return;
+    }
+    if (creativeMode === 'upload' && !uploadedAsset) {
+      uploadError = '完成画像を選択してください。';
+      saveMessage = uploadError;
+      return;
+    }
     showReview = true;
     requestAnimationFrame(() => document.querySelector('.review-anchor')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
   }
@@ -130,13 +212,20 @@
     const now = new Date().toISOString();
     const existing = editingId ? campaigns.find((campaign) => campaign.id === editingId) : undefined;
     const id = existing?.id ?? crypto.randomUUID();
+    const creativeSource = currentCreativeSource();
+    if (!creativeSource) {
+      showReview = false;
+      saveMessage = 'Creative画像を選択し直してください。';
+      return;
+    }
+    const savedCreativeName = creativeName.trim() || `${draft.name.trim()} Creative`;
     const campaign: Campaign = {
       ...$state.snapshot(draft),
       dailyBudget,
       targetKpi: { type: draft.targetKpi.type, value: targetValue },
       id,
       status: 'draft',
-      creative: { id: existing?.creative.id ?? crypto.randomUUID(), name: `${draft.name} Creative`, source: { type: 'studio', state: $state.snapshot(creative) } },
+      creative: { id: existing?.creative.id ?? crypto.randomUUID(), name: savedCreativeName, source: creativeSource },
       googleAds: {
         channel: 'google_ads',
         campaignType: 'display',
@@ -160,7 +249,7 @@
       savedSnapshot = currentSnapshot();
     } catch {
       campaigns = loadCampaigns();
-      saveMessage = '保存容量を超えました。背景画像を小さくしてお試しください。';
+      saveMessage = '保存容量を超えました。画像を小さくしてお試しください。';
     }
   }
 
@@ -188,6 +277,10 @@
     googleAds.bidding = 'maximize_clicks';
     creative = createDefaultCreativeState();
     backgroundImage = undefined;
+    creativeMode = 'studio';
+    creativeName = '';
+    uploadedAsset = undefined;
+    uploadError = '';
     savedSnapshot = currentSnapshot();
   }
 
@@ -210,7 +303,10 @@
     googleAds.adName = selected.googleAds?.adName ?? `${selected.name} バナー広告`;
     googleAds.location = selected.googleAds?.location ?? '日本';
     googleAds.bidding = selected.googleAds?.bidding ?? (selected.objective === 'conversion' ? 'maximize_conversions' : 'maximize_clicks');
+    creativeName = selected.creative.name;
     if (selected.creative.source.type === 'studio') {
+      creativeMode = 'studio';
+      uploadedAsset = undefined;
       creative = structuredClone(selected.creative.source.state);
       const imageUrl = creative.background.image;
       if (imageUrl) {
@@ -220,6 +316,10 @@
       } else {
         backgroundImage = undefined;
       }
+    } else {
+      creativeMode = 'upload';
+      uploadedAsset = structuredClone(selected.creative.source.asset);
+      backgroundImage = undefined;
     }
     savedSnapshot = currentSnapshot();
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -254,11 +354,16 @@
   <CampaignList {campaigns} activeId={editingId} onCreate={createCampaign} onEdit={editCampaign} onDelete={deleteCampaign} />
   <CampaignSetup {draft} {dateError} onObjectiveChange={syncObjective} />
   <section class="creative-step">
-    <div class="creative-title"><span>2</span><div><h2>Creativeを作成</h2><p>Campaignに登録するバナーを編集します。</p></div></div>
-    <div class="workspace">
-      <BannerEditor state={creative} {imageError} onImageUpload={handleImageUpload} />
-      <BannerPreview {creative} {backgroundImage} />
-    </div>
+    <div class="creative-title"><span>2</span><div><h2>Creativeを選択</h2><p>studioで作成するか、完成済みの広告画像を登録します。</p></div></div>
+    <CreativeSourceSelector mode={creativeMode} onSelect={selectCreativeMode} />
+    {#if creativeMode === 'studio'}
+      <div class="workspace">
+        <BannerEditor state={creative} {imageError} onImageUpload={handleImageUpload} />
+        <BannerPreview {creative} {backgroundImage} />
+      </div>
+    {:else}
+      <UploadedCreativeEditor name={creativeName} asset={uploadedAsset} error={uploadError} onNameInput={(name) => creativeName = name} onUpload={handleCompletedCreativeUpload} />
+    {/if}
   </section>
   <GoogleAdsSetup settings={googleAds} />
   <div class="save-area">
@@ -267,8 +372,9 @@
   </div>
   {#if saveMessage}<p class:save-error={saveMessage.includes('してください') || saveMessage.includes('超えました')} class="save-message">{saveMessage}</p>{/if}
   {#if showReview}
+    {@const creativeSource = currentCreativeSource()}
     <div class="review-anchor">
-      <CampaignReview {draft} ads={googleAds} {creative} {backgroundImage} onCancel={() => showReview = false} onConfirm={saveCampaign} />
+      {#if creativeSource}<CampaignReview {draft} ads={googleAds} creativeName={creativeName.trim() || `${draft.name.trim()} Creative`} {creativeSource} {backgroundImage} onCancel={() => showReview = false} onConfirm={saveCampaign} />{/if}
     </div>
   {/if}
 </main>

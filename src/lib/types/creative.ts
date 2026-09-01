@@ -7,6 +7,8 @@ export type CreativeSize = {
 
 export type TextAlign = 'left' | 'center' | 'right';
 export type BackgroundType = 'color' | 'image';
+export type CreativeMode = 'studio' | 'upload';
+export type UploadedCreativeAsset = Extract<CreativeSource, { type: 'upload' }>['asset'];
 
 /**
  * The single editable state shared by the parameter UI and, in the future,

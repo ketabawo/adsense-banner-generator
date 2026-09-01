@@ -16,7 +16,8 @@ describe('入稿前Review', () => {
     render(CampaignReview, {
       draft: campaignDraft(),
       ads: adsDraft(),
-      creative,
+      creativeName: 'テストCreative',
+      creativeSource: { type: 'studio', state: creative },
       onCancel: vi.fn(),
       onConfirm: vi.fn()
     });
@@ -26,5 +27,24 @@ describe('入稿前Review', () => {
     expect(screen.getByText('https://example.com')).toBeInTheDocument();
     expect(screen.getByText(/あなたのサービスを/)).toBeInTheDocument();
     expect(screen.queryByText('Creative', { selector: 'dt' })).not.toBeInTheDocument();
+  });
+
+  it('アップロードCreativeを画像のまま表示する', () => {
+    render(CampaignReview, {
+      draft: campaignDraft(),
+      ads: adsDraft(),
+      creativeName: 'Canva完成バナー',
+      creativeSource: {
+        type: 'upload',
+        asset: { url: 'data:image/png;base64,test', mimeType: 'image/png', width: 300, height: 250 }
+      },
+      onCancel: vi.fn(),
+      onConfirm: vi.fn()
+    });
+
+    expect(screen.getByText('Canva完成バナー')).toBeInTheDocument();
+    expect(screen.getByAltText('入稿するCreativeのプレビュー')).toHaveAttribute('src', 'data:image/png;base64,test');
+    expect(screen.getByText('完成画像アップロード')).toBeInTheDocument();
+    expect(screen.getByText('PNG')).toBeInTheDocument();
   });
 });

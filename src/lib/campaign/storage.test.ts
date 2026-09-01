@@ -28,6 +28,21 @@ describe('Campaign保存と復元', () => {
     expect(loadCampaigns()).toEqual([value]);
   });
 
+  it('アップロードCreativeを保存して再編集用に復元できる', () => {
+    const value = campaign({
+      creative: {
+        id: 'uploaded-creative',
+        name: '完成バナー',
+        source: {
+          type: 'upload',
+          asset: { url: 'data:image/jpeg;base64,test', mimeType: 'image/jpeg', width: 300, height: 250 }
+        }
+      }
+    });
+    saveCampaigns([value]);
+    expect(loadCampaigns()).toEqual([value]);
+  });
+
   it('JSON自体が壊れている場合は空一覧を返す', () => {
     localStorage.setItem(STORAGE_KEY, '{broken');
     expect(loadCampaigns()).toEqual([]);

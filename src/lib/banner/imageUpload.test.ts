@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_IMAGE_FILE_BYTES, validateImageFile } from './imageUpload';
+import { isSupportedBannerSize, MAX_IMAGE_FILE_BYTES, validateImageFile } from './imageUpload';
 
 describe('背景画像アップロード', () => {
   it.each(['image/png', 'image/jpeg', 'image/webp'])('%sを許可する', (type) => {
@@ -16,5 +16,13 @@ describe('背景画像アップロード', () => {
 
   it('8MBちょうどの画像を許可する', () => {
     expect(validateImageFile({ type: 'image/jpeg', size: MAX_IMAGE_FILE_BYTES })).toBe('');
+  });
+
+  it.each([[300, 250], [336, 280], [728, 90], [970, 250], [300, 600], [320, 50]])('%d×%dを主要バナーサイズとして許可する', (width, height) => {
+    expect(isSupportedBannerSize(width, height)).toBe(true);
+  });
+
+  it('未対応サイズを拒否する', () => {
+    expect(isSupportedBannerSize(400, 400)).toBe(false);
   });
 });

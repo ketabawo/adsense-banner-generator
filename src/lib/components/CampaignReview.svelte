@@ -2,43 +2,56 @@
   import { tick } from 'svelte';
   import { drawBanner } from '$lib/banner/drawBanner';
   import type { CampaignDraft, GoogleAdsDraft } from '$lib/types/campaign';
-  import type { CreativeState } from '$lib/types/creative';
+  import type { CreativeSource } from '$lib/types/creative';
 
-  let { draft, ads, creative, backgroundImage, onCancel, onConfirm }: {
+  let { draft, ads, creativeName, creativeSource, backgroundImage, onCancel, onConfirm }: {
     draft: CampaignDraft;
     ads: GoogleAdsDraft;
-    creative: CreativeState;
+    creativeName: string;
+    creativeSource: CreativeSource;
     backgroundImage?: HTMLImageElement;
     onCancel: () => void;
     onConfirm: () => void;
   } = $props();
   const yen = new Intl.NumberFormat('ja-JP');
-  let canvas: HTMLCanvasElement;
+  let canvas = $state<HTMLCanvasElement>();
 
   $effect(() => {
-    JSON.stringify(creative);
+    JSON.stringify(creativeSource);
     backgroundImage;
     void renderPreview();
   });
 
   async function renderPreview() {
     await tick();
-    if (!canvas) return;
-    canvas.width = creative.size.width;
-    canvas.height = creative.size.height;
+    if (!canvas || creativeSource.type !== 'studio') return;
+    canvas.width = creativeSource.state.size.width;
+    canvas.height = creativeSource.state.size.height;
     const context = canvas.getContext('2d');
-    if (context) drawBanner(context, creative, backgroundImage);
+    if (context) drawBanner(context, creativeSource.state, backgroundImage);
   }
 </script>
 
 <section class="review" aria-live="polite">
   <div class="title"><span>4</span><div><h2>入稿前Review</h2><p>まだGoogle Adsには送信されません。内容を確認して下書き保存します。</p></div></div>
   <div class="creative-review">
-    <div class="creative-heading"><strong>入稿するCreative</strong><span>{creative.size.width} × {creative.size.height}px</span></div>
-    <div class="creative-stage"><canvas bind:this={canvas} aria-label="入稿するCreativeのプレビュー"></canvas></div>
+    <div class="creative-heading"><strong>{creativeName}</strong><span>{creativeSource.type === 'studio' ? creativeSource.state.size.width : creativeSource.asset.width} × {creativeSource.type === 'studio' ? creativeSource.state.size.height : creativeSource.asset.height}px</span></div>
+    <div class="creative-stage">
+      {#if creativeSource.type === 'studio'}
+        <canvas bind:this={canvas} aria-label="入稿するCreativeのプレビュー"></canvas>
+      {:else}
+        <img src={creativeSource.asset.url} alt="入稿するCreativeのプレビュー" />
+      {/if}
+    </div>
     <div class="creative-copy">
-      <div><span>メインコピー</span><strong>{creative.headline.text}</strong></div>
-      <div><span>CTA</span><strong>{creative.cta.enabled ? creative.cta.text : 'なし'}</strong></div>
+      {#if creativeSource.type === 'studio'}
+        <div><span>作成方法</span><strong>studio制作</strong></div>
+        <div><span>メインコピー</span><strong>{creativeSource.state.headline.text}</strong></div>
+        <div><span>CTA</span><strong>{creativeSource.state.cta.enabled ? creativeSource.state.cta.text : 'なし'}</strong></div>
+      {:else}
+        <div><span>作成方法</span><strong>完成画像アップロード</strong></div>
+        <div><span>形式</span><strong>{creativeSource.asset.mimeType.replace('image/', '').toUpperCase()}</strong></div>
+      {/if}
     </div>
   </div>
   <div class="review-grid">
@@ -71,8 +84,8 @@
   .creative-heading strong { font-size: 12px; }
   .creative-heading span { color: #64748b; font-size: 10px; }
   .creative-stage { display: grid; min-height: 250px; padding: 24px; place-items: center; overflow: auto; background-color: #f8fafc; background-image: linear-gradient(45deg,#e2e8f0 25%,transparent 25%),linear-gradient(-45deg,#e2e8f0 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#e2e8f0 75%),linear-gradient(-45deg,transparent 75%,#e2e8f0 75%); background-position: 0 0,0 8px,8px -8px,-8px 0; background-size: 16px 16px; }
-  canvas { display: block; max-width: 100%; height: auto; box-shadow: 0 10px 24px #0f172a30; }
-  .creative-copy { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; border-top: 1px solid #e2e8f0; background: #e2e8f0; }
+  canvas, img { display: block; max-width: 100%; height: auto; box-shadow: 0 10px 24px #0f172a30; }
+  .creative-copy { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; border-top: 1px solid #e2e8f0; background: #e2e8f0; }
   .creative-copy div { display: grid; gap: 4px; padding: 10px 13px; background: white; }
   .creative-copy span { color: #64748b; font-size: 9px; }
   .creative-copy strong { white-space: pre-line; font-size: 11px; }
