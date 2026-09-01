@@ -6,7 +6,9 @@
   import GoogleAdsSetup from '$lib/components/GoogleAdsSetup.svelte';
   import CampaignReview from '$lib/components/CampaignReview.svelte';
   import { createDefaultCreativeState } from '$lib/banner/defaultState';
+  import { validateImageFile } from '$lib/banner/imageUpload';
   import { loadCampaigns, saveCampaigns } from '$lib/campaign/storage';
+  import { settingsForObjective, validateCampaignDraft, withoutCampaign } from '$lib/campaign/rules';
   import type { Campaign, CampaignDraft, GoogleAdsDraft } from '$lib/types/campaign';
 
   // Manual controls and future AI commands must update this same state object.
@@ -15,6 +17,7 @@
   let imageError = $state('');
   let campaigns = $state<Campaign[]>([]);
   let saveMessage = $state('');
+  let dateError = $state('');
   let editingId = $state<string | undefined>();
   let showReview = $state(false);
   let draft = $state<CampaignDraft>({
@@ -27,18 +30,43 @@
     targetKpi: { type: 'cpc', value: undefined }
   });
   let googleAds = $state<GoogleAdsDraft>({ adName: '', location: '日本', bidding: 'maximize_clicks' });
+  let savedSnapshot = $state('');
+
+  function currentSnapshot() {
+    return JSON.stringify({ draft, googleAds, creative });
+  }
+
+  let hasUnsavedChanges = $derived(savedSnapshot !== '' && currentSnapshot() !== savedSnapshot);
 
   $effect(() => {
     campaigns = loadCampaigns();
+    if (!savedSnapshot) savedSnapshot = currentSnapshot();
   });
+
+  $effect(() => {
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!hasUnsavedChanges) return;
+      event.preventDefault();
+    };
+    window.addEventListener('beforeunload', warnBeforeUnload);
+    return () => window.removeEventListener('beforeunload', warnBeforeUnload);
+  });
+
+  function confirmDiscardChanges() {
+    return !hasUnsavedChanges || window.confirm('未保存の変更があります。変更を破棄して続けますか？');
+  }
+
+  function syncObjective(objective: CampaignDraft['objective']) {
+    googleAds.bidding = settingsForObjective(objective).bidding;
+  }
 
   function handleImageUpload(event: Event) {
     const input = event.currentTarget as HTMLInputElement;
     const file = input.files?.[0];
     imageError = '';
     if (!file) return;
-    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
-      imageError = 'PNG・JPEG・WebP形式の画像を選択してください。';
+    imageError = validateImageFile(file);
+    if (imageError) {
       input.value = '';
       return;
     }
@@ -46,8 +74,30 @@
     reader.onload = () => {
       const image = new Image();
       image.onload = () => {
-        backgroundImage = image;
-        creative.background.image = String(reader.result);
+        const maxDimension = 1600;
+        const scale = Math.min(1, maxDimension / Math.max(image.naturalWidth, image.naturalHeight));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(image.naturalWidth * scale);
+        canvas.height = Math.round(image.naturalHeight * scale);
+        const context = canvas.getContext('2d');
+        if (!context) {
+          imageError = '画像を処理できませんでした。別の画像をお試しください。';
+          return;
+        }
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+        const optimizedUrl = canvas.toDataURL('image/webp', 0.86);
+        if (optimizedUrl.length * 2 > 2_500_000) {
+          imageError = '保存用に圧縮しても画像が大きすぎます。より小さい画像を選択してください。';
+          input.value = '';
+          return;
+        }
+        const optimizedImage = new Image();
+        optimizedImage.onload = () => {
+          backgroundImage = optimizedImage;
+          creative.background.image = optimizedUrl;
+        };
+        optimizedImage.onerror = () => imageError = '画像を処理できませんでした。別の画像をお試しください。';
+        optimizedImage.src = optimizedUrl;
       };
       image.onerror = () => imageError = '画像を読み込めませんでした。別の画像をお試しください。';
       image.src = String(reader.result);
@@ -57,23 +107,10 @@
   }
 
   function validateCampaign() {
-    saveMessage = '';
-    if (!draft.name.trim() || !draft.landingPageUrl.trim() || !draft.dailyBudget || draft.dailyBudget <= 0 || !draft.targetKpi.value || draft.targetKpi.value <= 0) {
-      saveMessage = 'Campaign名、URL、予算、目標KPIを正しく入力してください。';
-      return false;
-    }
-    try {
-      const url = new URL(draft.landingPageUrl);
-      if (!['http:', 'https:'].includes(url.protocol)) throw new Error('invalid protocol');
-    } catch {
-      saveMessage = 'Landing Page URLを正しく入力してください。';
-      return false;
-    }
-    if (!googleAds.adName.trim() || !googleAds.location.trim()) {
-      saveMessage = 'Google Adsの広告名と配信地域を入力してください。';
-      return false;
-    }
-    return true;
+    const result = validateCampaignDraft($state.snapshot(draft), $state.snapshot(googleAds));
+    saveMessage = result.message;
+    dateError = result.dateError;
+    return result.valid;
   }
 
   function openReview() {
@@ -94,12 +131,12 @@
     const existing = editingId ? campaigns.find((campaign) => campaign.id === editingId) : undefined;
     const id = existing?.id ?? crypto.randomUUID();
     const campaign: Campaign = {
-      ...structuredClone(draft),
+      ...$state.snapshot(draft),
       dailyBudget,
       targetKpi: { type: draft.targetKpi.type, value: targetValue },
       id,
       status: 'draft',
-      creative: { id: existing?.creative.id ?? crypto.randomUUID(), name: `${draft.name} Creative`, source: { type: 'studio', state: structuredClone(creative) } },
+      creative: { id: existing?.creative.id ?? crypto.randomUUID(), name: `${draft.name} Creative`, source: { type: 'studio', state: $state.snapshot(creative) } },
       googleAds: {
         channel: 'google_ads',
         campaignType: 'display',
@@ -120,6 +157,7 @@
       editingId = campaign.id;
       showReview = false;
       saveMessage = `「${campaign.name}」を下書き保存しました。`;
+      savedSnapshot = currentSnapshot();
     } catch {
       campaigns = loadCampaigns();
       saveMessage = '保存容量を超えました。背景画像を小さくしてお試しください。';
@@ -127,8 +165,15 @@
   }
 
   function createCampaign() {
+    if (!confirmDiscardChanges()) return;
+    resetCampaign();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function resetCampaign(message = '') {
     editingId = undefined;
-    saveMessage = '';
+    saveMessage = message;
+    dateError = '';
     showReview = false;
     draft.name = '';
     draft.landingPageUrl = '';
@@ -143,27 +188,30 @@
     googleAds.bidding = 'maximize_clicks';
     creative = createDefaultCreativeState();
     backgroundImage = undefined;
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    savedSnapshot = currentSnapshot();
   }
 
   function editCampaign(campaign: Campaign) {
-    editingId = campaign.id;
+    if (campaign.id !== editingId && !confirmDiscardChanges()) return;
+    const selected = $state.snapshot(campaign);
+    editingId = selected.id;
     saveMessage = '';
+    dateError = '';
     showReview = false;
     Object.assign(draft, structuredClone({
-      name: campaign.name,
-      landingPageUrl: campaign.landingPageUrl,
-      objective: campaign.objective,
-      dailyBudget: campaign.dailyBudget,
-      startDate: campaign.startDate,
-      endDate: campaign.endDate ?? '',
-      targetKpi: campaign.targetKpi
+      name: selected.name,
+      landingPageUrl: selected.landingPageUrl,
+      objective: selected.objective,
+      dailyBudget: selected.dailyBudget,
+      startDate: selected.startDate,
+      endDate: selected.endDate ?? '',
+      targetKpi: selected.targetKpi
     }));
-    googleAds.adName = campaign.googleAds?.adName ?? `${campaign.name} バナー広告`;
-    googleAds.location = campaign.googleAds?.location ?? '日本';
-    googleAds.bidding = campaign.googleAds?.bidding ?? (campaign.objective === 'conversion' ? 'maximize_conversions' : 'maximize_clicks');
-    if (campaign.creative.source.type === 'studio') {
-      creative = structuredClone(campaign.creative.source.state);
+    googleAds.adName = selected.googleAds?.adName ?? `${selected.name} バナー広告`;
+    googleAds.location = selected.googleAds?.location ?? '日本';
+    googleAds.bidding = selected.googleAds?.bidding ?? (selected.objective === 'conversion' ? 'maximize_conversions' : 'maximize_clicks');
+    if (selected.creative.source.type === 'studio') {
+      creative = structuredClone(selected.creative.source.state);
       const imageUrl = creative.background.image;
       if (imageUrl) {
         const image = new Image();
@@ -173,7 +221,21 @@
         backgroundImage = undefined;
       }
     }
+    savedSnapshot = currentSnapshot();
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function deleteCampaign(campaign: Campaign) {
+    if (!window.confirm(`「${campaign.name}」を削除しますか？この操作は取り消せません。`)) return;
+    const nextCampaigns = withoutCampaign(campaigns, campaign.id);
+    try {
+      saveCampaigns(nextCampaigns);
+      campaigns = nextCampaigns;
+      if (editingId === campaign.id) resetCampaign(`「${campaign.name}」を削除しました。`);
+      else saveMessage = `「${campaign.name}」を削除しました。`;
+    } catch {
+      saveMessage = 'Campaignを削除できませんでした。もう一度お試しください。';
+    }
   }
 </script>
 
@@ -189,8 +251,8 @@
     <div><h1>Campaignを作成</h1><p>Campaign設定とCreativeをまとめて下書き保存します。</p></div>
     <div class="privacy"><span>✓</span><div><strong>ブラウザだけで完結</strong><small>アップロード画像は外部へ送信されません</small></div></div>
   </div>
-  <CampaignList {campaigns} activeId={editingId} onCreate={createCampaign} onEdit={editCampaign} />
-  <CampaignSetup {draft} />
+  <CampaignList {campaigns} activeId={editingId} onCreate={createCampaign} onEdit={editCampaign} onDelete={deleteCampaign} />
+  <CampaignSetup {draft} {dateError} onObjectiveChange={syncObjective} />
   <section class="creative-step">
     <div class="creative-title"><span>2</span><div><h2>Creativeを作成</h2><p>Campaignに登録するバナーを編集します。</p></div></div>
     <div class="workspace">
@@ -200,13 +262,13 @@
   </section>
   <GoogleAdsSetup settings={googleAds} />
   <div class="save-area">
-    <div><strong>入稿内容を確認</strong><p>Campaign・Creative・Google Ads設定をReviewしてから保存します。</p></div>
+    <div><strong>入稿内容を確認</strong><p>Campaign・Creative・Google Ads設定をReviewしてから保存します。</p>{#if hasUnsavedChanges}<span class="unsaved">● 未保存の変更があります</span>{/if}</div>
     <button onclick={openReview}>Reviewへ進む</button>
   </div>
   {#if saveMessage}<p class:save-error={saveMessage.includes('してください') || saveMessage.includes('超えました')} class="save-message">{saveMessage}</p>{/if}
   {#if showReview}
     <div class="review-anchor">
-      <CampaignReview {draft} ads={googleAds} {creative} onCancel={() => showReview = false} onConfirm={saveCampaign} />
+      <CampaignReview {draft} ads={googleAds} {creative} {backgroundImage} onCancel={() => showReview = false} onConfirm={saveCampaign} />
     </div>
   {/if}
 </main>
@@ -242,6 +304,7 @@
   .save-area { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-top: 24px; padding: 20px 22px; border: 1px solid #bfdbfe; border-radius: 14px; background: #eff6ff; }
   .save-area strong { font-size: 14px; }
   .save-area p { margin: 4px 0 0; color: #64748b; font-size: 11px; }
+  .unsaved { display: block; margin-top: 7px; color: #b45309; font-size: 10px; font-weight: 700; }
   .save-area button { flex: 0 0 auto; border: 0; border-radius: 9px; padding: 12px 18px; background: #2563eb; color: white; cursor: pointer; font: inherit; font-size: 13px; font-weight: 750; }
   .save-area button:hover { background: #1d4ed8; }
   .save-message { margin: 12px 0 0; color: #047857; font-size: 12px; text-align: right; }

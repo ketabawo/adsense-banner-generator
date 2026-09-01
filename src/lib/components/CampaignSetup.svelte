@@ -1,13 +1,19 @@
 <script lang="ts">
   import Field from './Field.svelte';
+  import { settingsForObjective } from '$lib/campaign/rules';
   import type { CampaignDraft } from '$lib/types/campaign';
 
-  let { draft }: { draft: CampaignDraft } = $props();
+  let { draft, dateError = '', onObjectiveChange }: {
+    draft: CampaignDraft;
+    dateError?: string;
+    onObjectiveChange: (objective: CampaignDraft['objective']) => void;
+  } = $props();
 
   function chooseObjective(event: Event) {
     const objective = (event.currentTarget as HTMLSelectElement).value as CampaignDraft['objective'];
     draft.objective = objective;
-    draft.targetKpi.type = objective === 'traffic' ? 'cpc' : 'cpa';
+    draft.targetKpi.type = settingsForObjective(objective).kpiType;
+    onObjectiveChange(objective);
   }
 </script>
 
@@ -26,10 +32,11 @@
       </select>
     </Field>
     <Field label="1日の予算（円）"><input type="number" min="1" step="100" bind:value={draft.dailyBudget} placeholder="例：1000" /></Field>
-    <Field label="開始日"><input type="date" bind:value={draft.startDate} /></Field>
-    <Field label="終了日（任意）"><input type="date" bind:value={draft.endDate} /></Field>
+    <Field label="開始日"><input class:invalid={dateError} type="date" bind:value={draft.startDate} /></Field>
+    <Field label="終了日（任意）"><input class:invalid={dateError} type="date" bind:value={draft.endDate} /></Field>
     <Field label={`目標${draft.targetKpi.type === 'cpc' ? 'CPC' : 'CPA'}（円）`}><input type="number" min="1" step="10" bind:value={draft.targetKpi.value} placeholder={draft.targetKpi.type === 'cpc' ? '例：100' : '例：500'} /></Field>
   </div>
+  {#if dateError}<p class="error" role="alert">{dateError}</p>{/if}
 </section>
 
 <style>
@@ -42,6 +49,8 @@
   .form-grid { display: grid; grid-template-columns: 1.25fr 1.75fr 1fr 1fr; gap: 15px; align-items: end; }
   select, input { box-sizing: border-box; width: 100%; min-height: 40px; border: 1px solid #cbd5e1; border-radius: 8px; background: white; padding: 9px 11px; color: #172033; font: inherit; font-size: 13px; outline: none; }
   select:focus, input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px #dbeafe; }
+  input.invalid { border-color: #ef4444; }
+  .error { margin: 12px 0 0; color: #dc2626; font-size: 12px; }
   @media (max-width: 900px) { .form-grid { grid-template-columns: 1fr 1fr; } }
   @media (max-width: 560px) { .form-grid { grid-template-columns: 1fr; } }
 </style>

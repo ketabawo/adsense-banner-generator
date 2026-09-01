@@ -108,6 +108,8 @@ npm run dev
 | --- | --- |
 | `npm run dev` | 開発サーバーを起動 |
 | `npm run check` | Svelte／TypeScriptの型チェック |
+| `npm test` | Vitestの自動テストを1回実行 |
+| `npm run test:watch` | Vitestを監視モードで実行 |
 | `npm run build` | プロダクションビルド |
 | `npm run preview` | ビルド結果を確認 |
 | `npm run deploy` | 静的ビルド後、CORESERVERへFTPSでアップロード |
