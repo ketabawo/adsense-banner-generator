@@ -39,6 +39,8 @@ Campaign作成 → Creative作成 → Google Ads入稿 → 計測
 - Campaign一覧からの選択・再編集・上書き保存
 - Creative方式の選択（studio制作／完成画像アップロード）
 - 完成済みPNG・JPEG・WebPのCreative登録・再編集
+- IndexedDBによるCreativeライブラリ保存と別Campaignでの再利用
+- 既存CampaignのCreative自動移行、使用数表示、ライブラリ削除
 - Google Adsディスプレイ広告の最小設定
 - 入稿前Review（実API送信は未実装）
 - Creative制作MVP

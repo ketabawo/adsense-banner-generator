@@ -7,7 +7,7 @@ export type CreativeSize = {
 
 export type TextAlign = 'left' | 'center' | 'right';
 export type BackgroundType = 'color' | 'image';
-export type CreativeMode = 'studio' | 'upload';
+export type CreativeMode = 'studio' | 'upload' | 'library';
 export type UploadedCreativeAsset = Extract<CreativeSource, { type: 'upload' }>['asset'];
 
 /**
@@ -65,4 +65,9 @@ export type Creative = {
   id: string;
   name: string;
   source: CreativeSource;
+};
+
+export type LibraryCreative = Creative & {
+  createdAt: string;
+  updatedAt: string;
 };

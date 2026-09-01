@@ -7,12 +7,14 @@
   import CampaignReview from '$lib/components/CampaignReview.svelte';
   import CreativeSourceSelector from '$lib/components/CreativeSourceSelector.svelte';
   import UploadedCreativeEditor from '$lib/components/UploadedCreativeEditor.svelte';
+  import CreativeLibrary from '$lib/components/CreativeLibrary.svelte';
   import { createDefaultCreativeState } from '$lib/banner/defaultState';
   import { isSupportedBannerSize, validateImageFile } from '$lib/banner/imageUpload';
   import { loadCampaigns, saveCampaigns } from '$lib/campaign/storage';
   import { settingsForObjective, validateCampaignDraft, withoutCampaign } from '$lib/campaign/rules';
+  import { creativeUsageCount, loadCreativeLibrary, migrateCampaignCreatives, removeLibraryCreative, sameCreativeContent, saveLibraryCreative, toLibraryCreative } from '$lib/creative/library';
   import type { Campaign, CampaignDraft, GoogleAdsDraft } from '$lib/types/campaign';
-  import type { CreativeMode, CreativeSource, UploadedCreativeAsset } from '$lib/types/creative';
+  import type { CreativeMode, CreativeSource, LibraryCreative, UploadedCreativeAsset } from '$lib/types/creative';
 
   // Manual controls and future AI commands must update this same state object.
   let creative = $state(createDefaultCreativeState());
@@ -22,6 +24,9 @@
   let creativeName = $state('');
   let uploadedAsset = $state<UploadedCreativeAsset | undefined>();
   let uploadError = $state('');
+  let libraryCreatives = $state<LibraryCreative[]>([]);
+  let selectedLibraryCreative = $state<LibraryCreative | undefined>();
+  let libraryError = $state('');
   let campaigns = $state<Campaign[]>([]);
   let saveMessage = $state('');
   let dateError = $state('');
@@ -40,15 +45,26 @@
   let savedSnapshot = $state('');
 
   function currentSnapshot() {
-    return JSON.stringify({ draft, googleAds, creativeMode, creativeName, creative, uploadedAsset });
+    return JSON.stringify({ draft, googleAds, creativeMode, creativeName, creative, uploadedAsset, selectedLibraryId: selectedLibraryCreative?.id });
   }
 
   let hasUnsavedChanges = $derived(savedSnapshot !== '' && currentSnapshot() !== savedSnapshot);
 
   $effect(() => {
-    campaigns = loadCampaigns();
+    const loadedCampaigns = loadCampaigns();
+    campaigns = loadedCampaigns;
+    void initializeCreativeLibrary(loadedCampaigns);
     if (!savedSnapshot) savedSnapshot = currentSnapshot();
   });
+
+  async function initializeCreativeLibrary(existingCampaigns: Campaign[]) {
+    try {
+      libraryCreatives = await migrateCampaignCreatives(existingCampaigns);
+      libraryError = '';
+    } catch {
+      libraryError = 'Creativeライブラリを読み込めませんでした。ブラウザのストレージ設定をご確認ください。';
+    }
+  }
 
   $effect(() => {
     const warnBeforeUnload = (event: BeforeUnloadEvent) => {
@@ -71,6 +87,40 @@
     creativeMode = mode;
     uploadError = '';
     if (!creativeName.trim()) creativeName = draft.name.trim() ? `${draft.name.trim()} Creative` : '';
+    if (mode === 'studio') loadBackgroundImage(creative.background.image);
+    if (mode === 'upload') backgroundImage = undefined;
+  }
+
+  function loadBackgroundImage(url?: string) {
+    if (!url) {
+      backgroundImage = undefined;
+      return;
+    }
+    const image = new Image();
+    image.onload = () => backgroundImage = image;
+    image.src = url;
+  }
+
+  function selectLibraryCreative(selected: LibraryCreative) {
+    selectedLibraryCreative = structuredClone($state.snapshot(selected));
+    creativeName = selected.name;
+    if (selected.source.type === 'studio') loadBackgroundImage(selected.source.state.background.image);
+    else backgroundImage = undefined;
+    libraryError = '';
+  }
+
+  async function deleteLibraryCreative(selected: LibraryCreative) {
+    const usage = creativeUsageCount(campaigns, selected.id);
+    const usageMessage = usage > 0 ? `\n${usage}件のCampaign内のCreativeは削除されず、そのまま残ります。` : '';
+    if (!window.confirm(`「${selected.name}」をライブラリから削除しますか？${usageMessage}`)) return;
+    try {
+      await removeLibraryCreative(selected.id);
+      libraryCreatives = libraryCreatives.filter((item) => item.id !== selected.id);
+      if (selectedLibraryCreative?.id === selected.id) selectedLibraryCreative = undefined;
+      libraryError = `「${selected.name}」をライブラリから削除しました。`;
+    } catch {
+      libraryError = 'Creativeを削除できませんでした。もう一度お試しください。';
+    }
   }
 
   function handleCompletedCreativeUpload(event: Event) {
@@ -130,7 +180,8 @@
 
   function currentCreativeSource(): CreativeSource | undefined {
     if (creativeMode === 'studio') return { type: 'studio', state: $state.snapshot(creative) };
-    return uploadedAsset ? { type: 'upload', asset: $state.snapshot(uploadedAsset) } : undefined;
+    if (creativeMode === 'upload') return uploadedAsset ? { type: 'upload', asset: $state.snapshot(uploadedAsset) } : undefined;
+    return selectedLibraryCreative ? structuredClone($state.snapshot(selectedLibraryCreative.source)) : undefined;
   }
 
   function handleImageUpload(event: Event) {
@@ -197,11 +248,16 @@
       saveMessage = uploadError;
       return;
     }
+    if (creativeMode === 'library' && !selectedLibraryCreative) {
+      libraryError = '使用するCreativeをライブラリから選択してください。';
+      saveMessage = libraryError;
+      return;
+    }
     showReview = true;
     requestAnimationFrame(() => document.querySelector('.review-anchor')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
   }
 
-  function saveCampaign() {
+  async function saveCampaign() {
     const dailyBudget = draft.dailyBudget;
     const targetValue = draft.targetKpi.value;
     if (!dailyBudget || !targetValue) {
@@ -219,13 +275,20 @@
       return;
     }
     const savedCreativeName = creativeName.trim() || `${draft.name.trim()} Creative`;
+    const existingLibraryCreative = existing ? libraryCreatives.find((item) => item.id === existing.creative.id) : undefined;
+    const contentForComparison = { name: savedCreativeName, source: creativeSource };
+    const creativeId = creativeMode === 'library' && selectedLibraryCreative
+      ? selectedLibraryCreative.id
+      : existing && (!existingLibraryCreative || sameCreativeContent(contentForComparison, existingLibraryCreative))
+        ? existing.creative.id
+        : crypto.randomUUID();
     const campaign: Campaign = {
       ...$state.snapshot(draft),
       dailyBudget,
       targetKpi: { type: draft.targetKpi.type, value: targetValue },
       id,
       status: 'draft',
-      creative: { id: existing?.creative.id ?? crypto.randomUUID(), name: savedCreativeName, source: creativeSource },
+      creative: { id: creativeId, name: savedCreativeName, source: creativeSource },
       googleAds: {
         channel: 'google_ads',
         campaignType: 'display',
@@ -243,14 +306,22 @@
       : [campaign, ...campaigns];
     try {
       saveCampaigns(campaigns);
-      editingId = campaign.id;
-      showReview = false;
-      saveMessage = `「${campaign.name}」を下書き保存しました。`;
-      savedSnapshot = currentSnapshot();
     } catch {
       campaigns = loadCampaigns();
       saveMessage = '保存容量を超えました。画像を小さくしてお試しください。';
+      return;
     }
+    try {
+      const libraryCreativeToUpdate = libraryCreatives.find((item) => item.id === campaign.creative.id);
+      await saveLibraryCreative(toLibraryCreative(campaign.creative, libraryCreativeToUpdate, now));
+      libraryCreatives = await loadCreativeLibrary();
+    } catch {
+      libraryError = 'Campaignは保存しましたが、Creativeライブラリを更新できませんでした。';
+    }
+    editingId = campaign.id;
+    showReview = false;
+    saveMessage = `「${campaign.name}」を下書き保存しました。`;
+    savedSnapshot = currentSnapshot();
   }
 
   function createCampaign() {
@@ -281,6 +352,8 @@
     creativeName = '';
     uploadedAsset = undefined;
     uploadError = '';
+    selectedLibraryCreative = undefined;
+    libraryError = '';
     savedSnapshot = currentSnapshot();
   }
 
@@ -304,6 +377,7 @@
     googleAds.location = selected.googleAds?.location ?? '日本';
     googleAds.bidding = selected.googleAds?.bidding ?? (selected.objective === 'conversion' ? 'maximize_conversions' : 'maximize_clicks');
     creativeName = selected.creative.name;
+    selectedLibraryCreative = undefined;
     if (selected.creative.source.type === 'studio') {
       creativeMode = 'studio';
       uploadedAsset = undefined;
@@ -361,8 +435,11 @@
         <BannerEditor state={creative} {imageError} onImageUpload={handleImageUpload} />
         <BannerPreview {creative} {backgroundImage} />
       </div>
-    {:else}
+    {:else if creativeMode === 'upload'}
       <UploadedCreativeEditor name={creativeName} asset={uploadedAsset} error={uploadError} onNameInput={(name) => creativeName = name} onUpload={handleCompletedCreativeUpload} />
+    {:else}
+      <CreativeLibrary creatives={libraryCreatives} selectedId={selectedLibraryCreative?.id} usageCount={(id) => creativeUsageCount(campaigns, id)} onSelect={selectLibraryCreative} onDelete={deleteLibraryCreative} />
+      {#if libraryError}<p class:library-success={libraryError.includes('削除しました')} class="library-message" role="status">{libraryError}</p>{/if}
     {/if}
   </section>
   <GoogleAdsSetup settings={googleAds} />
@@ -415,6 +492,8 @@
   .save-area button:hover { background: #1d4ed8; }
   .save-message { margin: 12px 0 0; color: #047857; font-size: 12px; text-align: right; }
   .save-message.save-error { color: #dc2626; }
+  .library-message { margin: 12px 0 0; color: #dc2626; font-size: 11px; }
+  .library-message.library-success { color: #047857; }
   footer { padding: 22px; border-top: 1px solid #e2e8f0; color: #94a3b8; font-size: 10px; text-align: center; }
   footer span { margin: 0 7px; color: #cbd5e1; }
   @media (max-width: 900px) { .workspace { grid-template-columns: 1fr; } .intro { gap: 18px; } }
