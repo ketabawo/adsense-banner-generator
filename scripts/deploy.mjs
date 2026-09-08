@@ -11,12 +11,12 @@ if (missingVariables.length > 0) {
   process.exit(1);
 }
 
-const localDirectory = fileURLToPath(new URL('../build/', import.meta.url));
+const localDirectory = fileURLToPath(new URL('../build-static/', import.meta.url));
 
 try {
   await access(localDirectory);
 } catch {
-  console.error('buildディレクトリがありません。先に npm run build を実行してください。');
+  console.error('build-staticディレクトリがありません。先に npm run build:static を実行してください。');
   process.exit(1);
 }
 

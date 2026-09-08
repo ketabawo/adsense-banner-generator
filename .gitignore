@@ -4,3 +4,9 @@ build
 .DS_Store
 *.local
 .env.deploy
+
+build-static
+.env
+.env.*
+!.env.example
+!.env.deploy.example

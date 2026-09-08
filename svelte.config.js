@@ -1,16 +1,14 @@
-import adapter from '@sveltejs/adapter-static';
+import node from '@sveltejs/adapter-node';
+import adapterStatic from '@sveltejs/adapter-static';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 
-/** @type {import('@sveltejs/kit').Config} */
 const config = {
   preprocess: vitePreprocess(),
   kit: {
-    adapter: adapter({
-      pages: 'build',
-      assets: 'build',
-      strict: true
-    })
+    // Legacy static export intentionally omits non-prerendered server API routes.
+    adapter: process.env.BUILD_TARGET === 'static'
+      ? adapterStatic({ pages: 'build-static', assets: 'build-static', strict: false })
+      : node({ out: 'build' })
   }
 };
-
 export default config;

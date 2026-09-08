@@ -1,4 +1,5 @@
 <script lang="ts">
+  import GoogleAccount from '$lib/components/GoogleAccount.svelte';
   import BannerEditor from '$lib/components/BannerEditor.svelte';
   import BannerPreview from '$lib/components/BannerPreview.svelte';
   import CampaignSetup from '$lib/components/CampaignSetup.svelte';
@@ -423,8 +424,9 @@
 <main>
   <div class="intro">
     <div><h1>Campaignを作成</h1><p>Campaign設定とCreativeをまとめて下書き保存します。</p></div>
-    <div class="privacy"><span>✓</span><div><strong>ブラウザだけで完結</strong><small>アップロード画像は外部へ送信されません</small></div></div>
+    <div class="privacy"><span>✓</span><div><strong>Creativeはブラウザ内で編集</strong><small>アップロード画像は外部へ送信されません</small></div></div>
   </div>
+  <GoogleAccount />
   <CampaignList {campaigns} activeId={editingId} onCreate={createCampaign} onEdit={editCampaign} onDelete={deleteCampaign} />
   <CampaignSetup {draft} {dateError} onObjectiveChange={syncObjective} />
   <section class="creative-step">
