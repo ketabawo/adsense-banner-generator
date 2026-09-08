@@ -1,8 +1,7 @@
 <script lang="ts">
-  import GoogleAdsConnection from './GoogleAdsConnection.svelte';
   import { onMount } from 'svelte';
   let configured = $state(false);
-  let email = $state('');
+  let { email = $bindable('') }: { email?: string } = $props();
   let loading = $state(true);
   let message = $state('');
   let busy = $state(false);
@@ -36,8 +35,8 @@
   });
 </script>
 <section aria-label="Googleアカウント" class="account">
-  <div><strong>Googleアカウント</strong>
-    <p>{loading ? '確認中…' : email ? `${email} でログイン中` : configured ? 'Googleアカウントでログインできます。' : 'Googleログインは準備中です。Creativeの作成・保存は利用できます。'}</p>
+  <div class="identity"><strong>{email ? 'ログイン中' : 'Googleアカウント'}</strong>
+    <p>{loading ? '確認中…' : email ? email : configured ? 'Googleアカウントでログインできます。' : 'Googleログインは準備中です。'}</p>
     {#if message}<p role="alert">{message}</p>{/if}
   </div>
   {#if email}
@@ -48,11 +47,10 @@
     </form>
   {/if}
 </section>
-{#if email}{#key email}<GoogleAdsConnection />{/key}{/if}
 <style>
-  .account { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 22px; padding: 18px; border: 1px solid #dbe3ef; border-radius: 14px; background: white; }
-  strong { font-size: 14px; } p { margin: 5px 0 0; color: #64748b; font-size: 12px; overflow-wrap: anywhere; }
+  .account { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; }
+  .identity { min-width: 0; text-align: right; } strong { font-size: 10px; color: #64748b; font-weight: 500; } p { margin: 2px 0 0; color: #64748b; font-size: 12px; overflow-wrap: anywhere; }
   button { border: 0; border-radius: 8px; padding: 10px 14px; color: white; background: #2563eb; cursor: pointer; font: inherit; font-size: 12px; white-space: nowrap; }
   button:disabled { opacity: .5; } button:focus-visible { outline: 3px solid #93c5fd; outline-offset: 3px; }
-  @media (max-width: 600px) { .account { align-items: flex-start; flex-direction: column; } }
+  @media (max-width: 600px) { .account { width: 100%; } .identity { text-align: left; } }
 </style>

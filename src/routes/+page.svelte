@@ -1,5 +1,7 @@
 <script lang="ts">
   import GoogleAccount from '$lib/components/GoogleAccount.svelte';
+  import GoogleAdsConnection from '$lib/components/GoogleAdsConnection.svelte';
+  let accountEmail = $state('');
   import BannerEditor from '$lib/components/BannerEditor.svelte';
   import BannerPreview from '$lib/components/BannerPreview.svelte';
   import CampaignSetup from '$lib/components/CampaignSetup.svelte';
@@ -418,7 +420,7 @@
 
 <header>
   <div class="brand"><span>AI</span><strong>studio.ketabawo.asia</strong><em>Creative MVP</em></div>
-  <p>AI広告運用プラットフォーム</p>
+  <GoogleAccount bind:email={accountEmail} />
 </header>
 
 <main>
@@ -426,7 +428,7 @@
     <div><h1>Campaignを作成</h1><p>Campaign設定とCreativeをまとめて下書き保存します。</p></div>
     <div class="privacy"><span>✓</span><div><strong>Creativeはブラウザ内で編集</strong><small>アップロード画像は外部へ送信されません</small></div></div>
   </div>
-  <GoogleAccount />
+  {#if accountEmail}{#key accountEmail}<GoogleAdsConnection />{/key}{/if}
   <CampaignList {campaigns} activeId={editingId} onCreate={createCampaign} onEdit={editCampaign} onDelete={deleteCampaign} />
   <CampaignSetup {draft} {dateError} onObjectiveChange={syncObjective} />
   <section class="creative-step">
@@ -464,12 +466,11 @@
   :global(*) { box-sizing: border-box; }
   :global(html) { background: #f6f8fb; }
   :global(body) { margin: 0; color: #172033; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans JP", sans-serif; -webkit-font-smoothing: antialiased; }
-  header { display: flex; height: 62px; padding: 0 max(24px, calc((100% - 1180px) / 2)); align-items: center; justify-content: space-between; border-bottom: 1px solid #e2e8f0; background: #ffffffeb; }
+  header { display: flex; min-height: 62px; gap: 16px; padding: 0 max(24px, calc((100% - 1180px) / 2)); align-items: center; justify-content: space-between; border-bottom: 1px solid #e2e8f0; background: #ffffffeb; }
   .brand { display: flex; align-items: center; gap: 8px; }
   .brand > span { display: grid; width: 31px; height: 31px; place-items: center; border-radius: 8px; background: #2563eb; color: white; font-size: 12px; font-weight: 800; }
   .brand strong { font-size: 15px; letter-spacing: -.2px; }
   .brand em { padding: 3px 6px; border-radius: 4px; background: #eff6ff; color: #2563eb; font-size: 9px; font-style: normal; font-weight: 750; }
-  header p { color: #94a3b8; font-size: 11px; }
   main { width: min(1180px, calc(100% - 48px)); margin: 0 auto; padding: 34px 0 60px; }
   .intro { display: flex; margin-bottom: 25px; align-items: center; justify-content: space-between; }
   h1 { margin: 0 0 6px; font-size: 24px; letter-spacing: -.5px; }
@@ -499,5 +500,5 @@
   footer { padding: 22px; border-top: 1px solid #e2e8f0; color: #94a3b8; font-size: 10px; text-align: center; }
   footer span { margin: 0 7px; color: #cbd5e1; }
   @media (max-width: 900px) { .workspace { grid-template-columns: 1fr; } .intro { gap: 18px; } }
-  @media (max-width: 600px) { header { padding: 0 16px; } header p { display: none; } main { width: calc(100% - 28px); padding-top: 24px; } .intro { align-items: flex-start; flex-direction: column; } .privacy { width: 100%; } .creative-step { padding: 14px; } .save-area { align-items: stretch; flex-direction: column; } }
+  @media (max-width: 600px) { header { padding: 12px 16px; flex-wrap: wrap; } main { width: calc(100% - 28px); padding-top: 24px; } .intro { align-items: flex-start; flex-direction: column; } .privacy { width: 100%; } .creative-step { padding: 14px; } .save-area { align-items: stretch; flex-direction: column; } }
 </style>
