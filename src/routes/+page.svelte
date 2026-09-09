@@ -430,7 +430,7 @@
 <main>
   <div class="intro">
     <div><h1>Campaignを作成</h1><p>Campaign設定とCreativeをまとめて下書き保存します。</p></div>
-    <div class="privacy"><span>✓</span><div><strong>Creativeはブラウザ内で編集</strong><small>アップロード画像は外部へ送信されません</small></div></div>
+    <div class="privacy"><span>✓</span><div><strong>Creativeはブラウザ内で編集</strong><small>編集・下書き保存はブラウザ内。入稿時は画像と広告設定をstudioサーバー経由でGoogle Adsへ送信します。</small></div></div>
   </div>
   {#if accountEmail}{#key accountEmail}<GoogleAdsConnection />{/key}{/if}
   <CampaignList {campaigns} activeId={editingId} onCreate={createCampaign} onEdit={editCampaign} onDelete={deleteCampaign} />
@@ -464,7 +464,7 @@
   {/if}
 </main>
 
-<footer>studio.ketabawo.asia <span>•</span> Creative制作モジュール</footer>
+<footer>studio.ketabawo.asia <span>•</span> Creative制作モジュール <span>•</span> <a href="/privacy" target="_blank" rel="noopener">プライバシーポリシー（別タブ）</a></footer>
 
 <style>
   :global(*) { box-sizing: border-box; }
@@ -479,11 +479,11 @@
   .intro { display: flex; margin-bottom: 25px; align-items: center; justify-content: space-between; }
   h1 { margin: 0 0 6px; font-size: 24px; letter-spacing: -.5px; }
   .intro p { margin: 0; color: #64748b; font-size: 12px; }
-  .privacy { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border: 1px solid #d1fae5; border-radius: 10px; background: #f0fdf4; }
+  .privacy { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border: 1px solid #d1fae5; border-radius: 5px; background: #f0fdf4; }
   .privacy > span { display: grid; width: 22px; height: 22px; place-items: center; border-radius: 50%; background: #10b981; color: white; font-size: 11px; }
   .privacy div { display: grid; gap: 2px; }
   .privacy strong { color: #047857; font-size: 10px; }
-  .privacy small { color: #6b9a86; font-size: 9px; }
+  .privacy small { max-width: 360px; color: #416b5d; font-size: 12px; line-height: 1.6; }
   .creative-step { margin-top: 24px; padding: 22px; border: 1px solid #dbe3ef; border-radius: 5px; background: white; box-shadow: 0 8px 24px #0f172a08; }
   .creative-title { display: flex; align-items: center; gap: 11px; margin-bottom: 18px; }
   .creative-title > span { display: grid; width: 30px; height: 30px; place-items: center; border-radius: 9px; background: #2563eb; color: white; font-size: 13px; font-weight: 800; }

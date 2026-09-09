@@ -37,6 +37,7 @@
 <section aria-label="Googleアカウント" class="account">
   <div class="identity"><strong>{email ? 'ログイン中' : 'Googleアカウント'}</strong>
     <p>{loading ? '確認中…' : email ? email : configured ? 'Googleアカウントでログインできます。' : 'Googleログインは準備中です。'}</p>
+    <p><a href="/privacy" target="_blank" rel="noopener">プライバシーポリシー（別タブ）</a></p>
     {#if message}<p role="alert">{message}</p>{/if}
   </div>
   {#if email}

@@ -57,6 +57,7 @@
     <p>{status.authorized ? 'Google Adsの権限を取得済みです。テスト用広告アカウントを選択してください。' : 'ログイン中と同じGoogleアカウントで、Google Adsへのアクセスを許可してください。'}</p>
     <p>この画面では接続確認と接続先の保存を行います。広告の作成・配信は行いません。</p>
     {#if status.customerId}<p class="selected">保存済みの接続先：{status.customerId}{status.loginCustomerId ? `（マネージャー：${status.loginCustomerId}）` : ''}</p>{/if}
+    <p>許可すると、広告アカウント情報を取得し、接続を維持するための認証情報を暗号化して保存します。<a href="/privacy" target="_blank" rel="noopener">データの扱い（別タブ）</a></p>
     <div class="actions">
       <form method="POST" action="/auth/google/ads" target="_blank" rel="noopener">
         <button type="submit" disabled={busy}>{status.authorized ? '権限を再取得（別タブ）' : 'Google Adsへのアクセスを許可（別タブ）'}</button>

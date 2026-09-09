@@ -38,6 +38,7 @@
   <h3>テストアカウントへ入稿</h3>
   <p>選択した地域・日本語／JPY口座、対応サイズのPNG（150KB以下）で作成します。目標KPIは管理用の目安で、入札単価の上限には設定しません。</p>
   <p>Campaign・広告グループ・広告はすべて停止状態で作成します。</p>
+  <p>入稿すると、広告画像と広告設定をstudioサーバー経由でGoogle Adsへ送信します。<a href="/privacy" target="_blank" rel="noopener">データの扱い（別タブ）</a></p>
   <button disabled={busy} onclick={loadAccount}>接続先を確認</button>
   {#if customerId}
     <p>接続先: {customerId} ／ 入札: {ads.bidding === 'maximize_clicks' ? 'クリック数の最大化' : 'コンバージョン数の最大化'} ／ {draft.startDate} ～ {draft.endDate || '終了日なし'}</p>
