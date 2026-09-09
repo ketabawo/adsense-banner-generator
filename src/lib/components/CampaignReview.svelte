@@ -1,4 +1,5 @@
 <script lang="ts">
+  import AdsSubmission from './AdsSubmission.svelte';
   import { tick } from 'svelte';
   import { drawBanner } from '$lib/banner/drawBanner';
   import type { CampaignDraft, GoogleAdsDraft } from '$lib/types/campaign';
@@ -22,6 +23,24 @@
     void renderPreview();
   });
 
+  async function makeImage(): Promise<string> {
+    if (creativeSource.type === 'studio') {
+      await renderPreview();
+      if (!canvas) throw new Error('Preview unavailable');
+      return canvas.toDataURL('image/png');
+    }
+    const image = new Image();
+    image.src = creativeSource.asset.url;
+    await image.decode();
+    const output = document.createElement('canvas');
+    output.width = image.naturalWidth;
+    output.height = image.naturalHeight;
+    const context = output.getContext('2d');
+    if (!context) throw new Error('Canvas unavailable');
+    context.drawImage(image, 0, 0);
+    return output.toDataURL('image/png');
+  }
+
   async function renderPreview() {
     await tick();
     if (!canvas || creativeSource.type !== 'studio') return;
@@ -33,7 +52,7 @@
 </script>
 
 <section class="review" aria-live="polite">
-  <div class="title"><span>4</span><div><h2>入稿前Review</h2><p>まだGoogle Adsには送信されません。内容を確認して下書き保存します。</p></div></div>
+  <div class="title"><span>4</span><div><h2>入稿前Review</h2><p>内容を確認して下書き保存、またはテストアカウントへ停止状態で入稿します。</p></div></div>
   <div class="creative-review">
     <div class="creative-heading"><strong>{creativeName}</strong><span>{creativeSource.type === 'studio' ? creativeSource.state.size.width : creativeSource.asset.width} × {creativeSource.type === 'studio' ? creativeSource.state.size.height : creativeSource.asset.height}px</span></div>
     <div class="creative-stage">
@@ -70,16 +89,17 @@
   </div>
   <div class="notice">安全のため、実際のAPI入稿時も一時停止状態で作成します。</div>
   <div class="actions"><button class="cancel" onclick={onCancel}>戻って修正</button><button class="confirm" onclick={onConfirm}>下書きを保存</button></div>
+  {#key JSON.stringify(creativeSource)}<AdsSubmission {draft} {ads} {makeImage} />{/key}
 </section>
 
 <style>
-  .review { margin-top: 24px; padding: 22px; border: 2px solid #93c5fd; border-radius: 16px; background: white; box-shadow: 0 12px 30px #2563eb12; }
+  .review { margin-top: 24px; padding: 22px; border: 2px solid #93c5fd; border-radius: 5px; background: white; box-shadow: 0 12px 30px #2563eb12; }
   .title { display: flex; align-items: center; gap: 11px; margin-bottom: 18px; }
-  .title > span { display: grid; width: 30px; height: 30px; place-items: center; border-radius: 9px; background: #2563eb; color: white; font-size: 13px; font-weight: 800; }
+  .title > span { display: grid; width: 30px; height: 30px; place-items: center; border-radius: 5px; background: #2563eb; color: white; font-size: 13px; font-weight: 800; }
   h2, p { margin: 0; }
   h2 { font-size: 16px; }
   p { margin-top: 3px; color: #64748b; font-size: 11px; }
-  .creative-review { margin-bottom: 20px; overflow: hidden; border: 1px solid #bfdbfe; border-radius: 12px; background: #f8fafc; }
+  .creative-review { margin-bottom: 20px; overflow: hidden; border: 1px solid #bfdbfe; border-radius: 5px; background: #f8fafc; }
   .creative-heading { display: flex; align-items: center; justify-content: space-between; padding: 11px 14px; border-bottom: 1px solid #dbeafe; background: #eff6ff; }
   .creative-heading strong { font-size: 12px; }
   .creative-heading span { color: #64748b; font-size: 10px; }
@@ -90,16 +110,16 @@
   .creative-copy span { color: #64748b; font-size: 9px; }
   .creative-copy strong { white-space: pre-line; font-size: 11px; }
   .review-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; align-items: start; }
-  dl { margin: 0; overflow: hidden; border: 1px solid #e2e8f0; border-radius: 10px; }
+  dl { margin: 0; overflow: hidden; border: 1px solid #e2e8f0; border-radius: 5px; }
   dl div { display: grid; grid-template-columns: 120px 1fr; border-bottom: 1px solid #e2e8f0; }
   dl div:last-child { border-bottom: 0; }
   dt, dd { margin: 0; padding: 10px 12px; font-size: 11px; }
   dt { background: #f8fafc; color: #64748b; }
   dd { color: #172033; font-weight: 650; }
   dd.url { overflow-wrap: anywhere; }
-  .notice { margin-top: 15px; padding: 10px 12px; border-radius: 8px; background: #fff7ed; color: #9a3412; font-size: 11px; }
+  .notice { margin-top: 15px; padding: 10px 12px; border-radius: 5px; background: #fff7ed; color: #9a3412; font-size: 11px; }
   .actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
-  button { border: 0; border-radius: 9px; padding: 11px 16px; cursor: pointer; font: inherit; font-size: 12px; font-weight: 750; }
+  button { border: 0; border-radius: 5px; padding: 11px 16px; cursor: pointer; font: inherit; font-size: 12px; font-weight: 750; }
   .cancel { background: #f1f5f9; color: #475569; }
   .confirm { background: #2563eb; color: white; }
   @media (max-width: 700px) { .review-grid { grid-template-columns: 1fr; } dl div { grid-template-columns: 100px 1fr; } .creative-copy { grid-template-columns: 1fr; } .creative-stage { min-height: 200px; padding: 16px; } }

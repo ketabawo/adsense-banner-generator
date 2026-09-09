@@ -480,18 +480,18 @@
   .privacy div { display: grid; gap: 2px; }
   .privacy strong { color: #047857; font-size: 10px; }
   .privacy small { color: #6b9a86; font-size: 9px; }
-  .creative-step { margin-top: 24px; padding: 22px; border: 1px solid #dbe3ef; border-radius: 16px; background: white; box-shadow: 0 8px 24px #0f172a08; }
+  .creative-step { margin-top: 24px; padding: 22px; border: 1px solid #dbe3ef; border-radius: 5px; background: white; box-shadow: 0 8px 24px #0f172a08; }
   .creative-title { display: flex; align-items: center; gap: 11px; margin-bottom: 18px; }
   .creative-title > span { display: grid; width: 30px; height: 30px; place-items: center; border-radius: 9px; background: #2563eb; color: white; font-size: 13px; font-weight: 800; }
   .creative-title h2, .creative-title p { margin: 0; }
   .creative-title h2 { font-size: 16px; }
   .creative-title p { margin-top: 3px; color: #64748b; font-size: 11px; }
   .workspace { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 24px; align-items: start; }
-  .save-area { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-top: 24px; padding: 20px 22px; border: 1px solid #bfdbfe; border-radius: 14px; background: #eff6ff; }
+  .save-area { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-top: 24px; padding: 20px 22px; border: 1px solid #bfdbfe; border-radius: 5px; background: #eff6ff; }
   .save-area strong { font-size: 14px; }
   .save-area p { margin: 4px 0 0; color: #64748b; font-size: 11px; }
   .unsaved { display: block; margin-top: 7px; color: #b45309; font-size: 10px; font-weight: 700; }
-  .save-area button { flex: 0 0 auto; border: 0; border-radius: 9px; padding: 12px 18px; background: #2563eb; color: white; cursor: pointer; font: inherit; font-size: 13px; font-weight: 750; }
+  .save-area button { flex: 0 0 auto; border: 0; border-radius: 5px; padding: 12px 18px; background: #2563eb; color: white; cursor: pointer; font: inherit; font-size: 13px; font-weight: 750; }
   .save-area button:hover { background: #1d4ed8; }
   .save-message { margin: 12px 0 0; color: #047857; font-size: 12px; text-align: right; }
   .save-message.save-error { color: #dc2626; }

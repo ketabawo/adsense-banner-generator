@@ -40,14 +40,14 @@
 </section>
 
 <style>
-  .campaign-card { margin-bottom: 24px; padding: 22px; border: 1px solid #dbe3ef; border-radius: 16px; background: white; box-shadow: 0 8px 24px #0f172a08; }
+  .campaign-card { margin-bottom: 24px; padding: 22px; border: 1px solid #dbe3ef; border-radius: 5px; background: white; box-shadow: 0 8px 24px #0f172a08; }
   .section-title { display: flex; align-items: center; gap: 11px; margin-bottom: 18px; }
   .section-title > span { display: grid; width: 30px; height: 30px; place-items: center; border-radius: 9px; background: #2563eb; color: white; font-size: 13px; font-weight: 800; }
   h2, p { margin: 0; }
   h2 { font-size: 16px; }
   p { margin-top: 3px; color: #64748b; font-size: 11px; }
   .form-grid { display: grid; grid-template-columns: 1.25fr 1.75fr 1fr 1fr; gap: 15px; align-items: end; }
-  select, input { box-sizing: border-box; width: 100%; min-height: 40px; border: 1px solid #cbd5e1; border-radius: 8px; background: white; padding: 9px 11px; color: #172033; font: inherit; font-size: 13px; outline: none; }
+  select, input { box-sizing: border-box; width: 100%; min-height: 40px; border: 1px solid #cbd5e1; border-radius: 5px; background: white; padding: 9px 11px; color: #172033; font: inherit; font-size: 13px; outline: none; }
   select:focus, input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px #dbeafe; }
   input.invalid { border-color: #ef4444; }
   .error { margin: 12px 0 0; color: #dc2626; font-size: 12px; }

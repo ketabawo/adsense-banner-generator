@@ -24,7 +24,7 @@
 
 <style>
   .source-selector { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 18px; }
-  button { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; border: 1px solid #dbe3ef; border-radius: 12px; padding: 14px; background: #f8fafc; color: #172033; cursor: pointer; font: inherit; text-align: left; }
+  button { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; border: 1px solid #dbe3ef; border-radius: 5px; padding: 14px; background: #f8fafc; color: #172033; cursor: pointer; font: inherit; text-align: left; }
   button:hover { border-color: #93c5fd; background: #f8fbff; }
   button.active { border-color: #3b82f6; background: #eff6ff; box-shadow: inset 0 0 0 1px #3b82f6; }
   .icon { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 9px; background: white; color: #2563eb; font-size: 16px; font-weight: 800; box-shadow: 0 1px 4px #0f172a12; }

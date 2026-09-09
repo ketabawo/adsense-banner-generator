@@ -50,7 +50,7 @@
 <style>
   .account { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; }
   .identity { min-width: 0; text-align: right; } strong { font-size: 10px; color: #64748b; font-weight: 500; } p { margin: 2px 0 0; color: #64748b; font-size: 12px; overflow-wrap: anywhere; }
-  button { border: 0; border-radius: 8px; padding: 10px 14px; color: white; background: #2563eb; cursor: pointer; font: inherit; font-size: 12px; white-space: nowrap; }
+  button { border: 0; border-radius: 5px; padding: 10px 14px; color: white; background: #2563eb; cursor: pointer; font: inherit; font-size: 12px; white-space: nowrap; }
   button:disabled { opacity: .5; } button:focus-visible { outline: 3px solid #93c5fd; outline-offset: 3px; }
   @media (max-width: 600px) { .account { width: 100%; } .identity { text-align: left; } }
 </style>

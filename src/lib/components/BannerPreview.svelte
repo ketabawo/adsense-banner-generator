@@ -50,7 +50,7 @@
 </div>
 
 <style>
-  .preview-card { position: sticky; top: 24px; overflow: hidden; border: 1px solid #e2e8f0; border-radius: 16px; background: white; box-shadow: 0 12px 35px #0f172a0d; }
+  .preview-card { position: sticky; top: 24px; overflow: hidden; border: 1px solid #e2e8f0; border-radius: 5px; background: white; box-shadow: 0 12px 35px #0f172a0d; }
   .preview-head { display: flex; align-items: center; justify-content: space-between; padding: 17px 20px; border-bottom: 1px solid #e2e8f0; }
   .preview-head div { display: flex; align-items: baseline; gap: 10px; }
   .preview-head span { color: #172033; font-size: 14px; font-weight: 750; }
@@ -61,7 +61,7 @@
   canvas { display: block; max-width: 100%; height: auto; box-shadow: 0 12px 28px #0f172a2b; }
   .status { padding: 0 20px; }
   .warning { margin: 12px 0 0; padding: 9px 11px; border-radius: 7px; background: #fff7ed; color: #c2410c; font-size: 11px; }
-  .download { display: flex; width: calc(100% - 40px); margin: 20px; margin-bottom: 10px; align-items: center; justify-content: center; gap: 9px; border: 0; border-radius: 10px; padding: 13px; background: #2563eb; color: white; cursor: pointer; font: inherit; font-size: 14px; font-weight: 750; box-shadow: 0 5px 12px #2563eb36; }
+  .download { display: flex; width: calc(100% - 40px); margin: 20px; margin-bottom: 10px; align-items: center; justify-content: center; gap: 9px; border: 0; border-radius: 5px; padding: 13px; background: #2563eb; color: white; cursor: pointer; font: inherit; font-size: 14px; font-weight: 750; box-shadow: 0 5px 12px #2563eb36; }
   .download:hover { background: #1d4ed8; }
   .download:disabled { opacity: .45; cursor: not-allowed; }
   .download svg { width: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }

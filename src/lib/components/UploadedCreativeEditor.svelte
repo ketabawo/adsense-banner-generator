@@ -30,10 +30,10 @@
 
 <style>
   .upload-workspace { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 24px; align-items: start; }
-  .upload-fields, .uploaded-preview { overflow: hidden; border: 1px solid #e2e8f0; border-radius: 14px; background: white; }
+  .upload-fields, .uploaded-preview { overflow: hidden; border: 1px solid #e2e8f0; border-radius: 5px; background: white; }
   .upload-fields { display: grid; gap: 15px; padding: 20px; }
   label { display: grid; gap: 7px; color: #334155; font-size: 13px; font-weight: 650; }
-  input { width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 11px; color: #172033; font: inherit; font-size: 12px; }
+  input { width: 100%; border: 1px solid #cbd5e1; border-radius: 5px; padding: 10px 11px; color: #172033; font: inherit; font-size: 12px; }
   input:focus { border-color: #3b82f6; outline: none; box-shadow: 0 0 0 3px #dbeafe; }
   .file { border-style: dashed; border-color: #93c5fd; background: #eff6ff; }
   p { margin: 0; color: #64748b; font-size: 10px; line-height: 1.6; }

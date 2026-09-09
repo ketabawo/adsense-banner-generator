@@ -37,7 +37,7 @@
   .info strong { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
   .info span { color: #475569; font-size: 10px; }
   .info small { color: #94a3b8; font-size: 9px; }
-  .delete { position: absolute; right: 9px; bottom: 11px; border: 0; border-radius: 7px; padding: 6px 7px; background: #f8fafc; color: #94a3b8; cursor: pointer; font: inherit; font-size: 9px; }
+  .delete { position: absolute; right: 9px; bottom: 11px; border: 0; border-radius: 5px; padding: 6px 7px; background: #f8fafc; color: #94a3b8; cursor: pointer; font: inherit; font-size: 9px; }
   .delete:hover { background: #fee2e2; color: #dc2626; }
   .empty { padding: 28px; border: 1px dashed #cbd5e1; border-radius: 12px; background: #f8fafc; text-align: center; }
   .empty strong { font-size: 13px; }

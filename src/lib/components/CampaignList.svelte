@@ -38,12 +38,12 @@
 </section>
 
 <style>
-  .list-card { margin-bottom: 22px; overflow: hidden; border: 1px solid #dbe3ef; border-radius: 14px; background: white; }
+  .list-card { margin-bottom: 22px; overflow: hidden; border: 1px solid #dbe3ef; border-radius: 5px; background: white; }
   .list-head { display: flex; align-items: center; justify-content: space-between; padding: 15px 17px; border-bottom: 1px solid #e2e8f0; }
   .list-head div { display: flex; align-items: center; gap: 8px; }
   .list-head span { font-size: 14px; font-weight: 750; }
   .list-head strong { display: grid; min-width: 21px; height: 21px; padding: 0 6px; place-items: center; border-radius: 11px; background: #eff6ff; color: #2563eb; font-size: 10px; }
-  .list-head button { border: 0; border-radius: 8px; padding: 8px 11px; background: #172033; color: white; cursor: pointer; font: inherit; font-size: 11px; font-weight: 700; }
+  .list-head button { border: 0; border-radius: 5px; padding: 8px 11px; background: #172033; color: white; cursor: pointer; font: inherit; font-size: 11px; font-weight: 700; }
   .empty { margin: 0; padding: 18px; color: #64748b; font-size: 12px; }
   .campaigns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: #e2e8f0; }
   .campaign { position: relative; display: flex; min-width: 0; align-items: stretch; background: white; color: #172033; }
@@ -55,7 +55,7 @@
   .meta { display: grid; flex: 0 0 auto; justify-items: end; gap: 5px; }
   em { padding: 3px 6px; border-radius: 10px; background: #f1f5f9; color: #64748b; font-size: 9px; font-style: normal; }
   time { color: #94a3b8; font-size: 9px; }
-  .delete { align-self: center; margin-right: 10px; border: 0; border-radius: 7px; padding: 6px 7px; background: transparent; color: #94a3b8; cursor: pointer; font: inherit; font-size: 9px; }
+  .delete { align-self: center; margin-right: 10px; border: 0; border-radius: 5px; padding: 6px 7px; background: transparent; color: #94a3b8; cursor: pointer; font: inherit; font-size: 9px; }
   .delete:hover { background: #fee2e2; color: #dc2626; }
   @media (max-width: 850px) { .campaigns { grid-template-columns: 1fr; } }
 </style>

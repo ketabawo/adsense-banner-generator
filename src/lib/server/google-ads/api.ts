@@ -8,6 +8,11 @@ export class AdsError extends Error {
   constructor(public readonly code: string) { super(code); }
 }
 const messages: Record<string, string> = {
+  REQUIRED: '入稿に必要な項目が不足しています。（REQUIRED）',
+  LAYOUT_PROBLEM: 'Google Adsが画像のレイアウトを受け付けませんでした。画像の内容や形式を確認してください。（LAYOUT_PROBLEM）',
+  IMAGE_TOO_LARGE: '入稿画像の容量が上限を超えています。（IMAGE_TOO_LARGE）',
+  INVALID_IMAGE: 'Google Adsが画像を読み取れませんでした。（INVALID_IMAGE）',
+  UNEXPECTED_SIZE: 'Google Adsが画像サイズを受け付けませんでした。（UNEXPECTED_SIZE）',
   SERVICE_DISABLED: 'Google CloudでGoogle Ads APIが無効です。OAuthクライアントを作成したプロジェクトの「APIとサービス → ライブラリ」でGoogle Ads APIを有効にしてから、一覧を取得し直してください。（SERVICE_DISABLED）',
   ACCESS_TOKEN_SCOPE_INSUFFICIENT: 'Google Adsの権限が不足しています。「権限を再取得」からアクセスを許可してください。',
   DEVELOPER_TOKEN_INVALID: 'Developer Tokenが無効です。APIセンターの値と.envの設定を確認してください。（DEVELOPER_TOKEN_INVALID）',
@@ -33,7 +38,7 @@ export function customerId(value: unknown): string {
 
 type Customer = { id?: string; descriptiveName?: string; manager?: boolean; testAccount?: boolean; currencyCode?: string; timeZone?: string; status?: string };
 type Row = { customer?: Customer; customerClient?: Customer & { clientCustomer?: string } };
-type ApiResponse = { resourceNames?: string[]; results?: Row[]; nextPageToken?: string };
+type ApiResponse = { resourceNames?: string[]; results?: Row[]; nextPageToken?: string; mutateOperationResponses?: Record<string, { resourceName?: string }>[] };
 
 async function reader(subject: string) {
   const developer = env.GOOGLE_ADS_DEVELOPER_TOKEN?.trim();
@@ -67,6 +72,11 @@ async function reader(subject: string) {
     throw new AdsError('LIMIT');
   }
   return { request, search };
+}
+
+// Call only after verifying the selected test account. No automatic retries for writes.
+export async function mutateTestResources(subject: string, id: string, login: string | null, body: object) {
+  return (await reader(subject)).request(`customers/${customerId(id)}/googleAds:mutate`, login, body);
 }
 
 const CUSTOMER_QUERY = 'SELECT customer.id, customer.descriptive_name, customer.manager, customer.test_account, customer.currency_code, customer.time_zone, customer.status FROM customer';

@@ -42,7 +42,7 @@ Campaign作成 → Creative作成 → Google Ads入稿 → 計測
 - IndexedDBによるCreativeライブラリ保存と別Campaignでの再利用
 - 既存CampaignのCreative自動移行、使用数表示、ライブラリ削除
 - Google Adsディスプレイ広告の最小設定
-- 入稿前Review（実API送信は未実装）
+- 入稿前Reviewとテストアカウントへの停止状態での入稿（実操作で成功確認済み）
 - Creative制作MVP
 
 - Canvasによるリアルタイムプレビュー
@@ -53,7 +53,7 @@ Campaign作成 → Creative作成 → Google Ads入稿 → 計測
 - PNG出力
 - PNG・JPEG・WebPの背景画像読み込みと下書きへの保持
 
-未実装：Google Ads連携、実績取得、Dashboard、AI Campaign Assistant、Execution Plan、クラウド保存。Googleログインは実装済みで、Google Cloud設定後の実アカウント検証が必要です。
+Googleログイン・Google Adsテストアカウント接続は実操作で検証済みです。停止状態での入稿も実操作で成功表示と作成リソースIDを確認済みです。Google側の状態再取得は未確認です。未実装：本番アカウントへの入稿、実績取得、Dashboard、AI Campaign Assistant、Execution Plan、Creativeのクラウド保存。最新の再開位置は末尾の2026-09-09の記録を参照してください。
 
 ## 設計原則
 
@@ -292,3 +292,41 @@ Google Adsの追加認可、アカウント一覧取得、接続先保存まで�
 一部アカウントの取得対象外・取得失敗の警告は、目的のテスト広告アカウントの接続成功とは別です。アプリのエラー表示は既知のエラーコードを使い、Googleのメッセージ本文や秘密情報を公開しません。
 
 次に着手する作業：現在のコードとGoogle Adsの仕様を確認し、既存Reviewから選択済みテスト広告アカウントへPAUSEDで入稿する最小経路を実装する。Budget・Campaign・Ad Group・画像・広告の作成、入力検証、結果保存、重複送信防止を扱います。広告作成・配信はまだ実行していません。本番公開も未実施です。
+
+## 停止状態でのテスト入稿（2026-09-09）
+
+Reviewからテスト広告アカウントへ入稿する最小経路を追加しました。`004_ads_submissions.sql`をローカルDBに適用済みです。実Google Adsへの入稿確認と本番公開はまだ実施していません。
+
+- Reviewの「接続先を確認」から接続先IDを確認し、EU政治広告を含まない旨を確認して「この内容で停止状態の広告を作成」を押します。
+- 日本・日本語・JPYのテスト用非マネージャーアカウント限定です。接続先はDBから取得し、ブラウザで確認したIDとの一致、Google側のアクセス権限・テストアカウント状態を再検証します。
+- 既存CreativeをブラウザでPNGに変換します。対応する8種類の広告サイズ、150KB以下に限定します。WebP/JPEGもPNG変換後の容量で判定します。サーバーは外部画像URLを取得しません。
+- Budget・Campaign・日本/日本語の配信条件・Ad Group・画像広告を一つの非部分成功リクエストで作成します。画像はImageAdのデータとして同時作成し、独立Assetは作りません。Campaign・Ad Group・広告はすべてPAUSED固定です。
+- Google Ads v25の`startDateTime`/`endDateTime`を使用し、開始日はアカウントのタイムゾーンの今日以降に限定します。目標KPIは管理用の目安であり、入札単価の上限や目標CPAとしては送信しません。
+- 先に`validateOnly`でGoogle側の検証を行い、実送信前にユーザー・接続先・入力内容のハッシュをDBに一意保存します。同じ内容の再操作や並行送信は保存済み記録を返し、再作成しません。
+- 成功したリソース名をDBと画面に保存・表示します。送信後の通信切断や結果保存失敗は`unknown`、処理中のクラッシュは`sending`として再送を止めます。Google Ads側で`studio-記録ID`のCampaign名を照合してください。未確定状態の自動復旧・再送解除は未実装です。確認前に入力内容を変えて再送しないでください。
+- `/api/google-ads/submissions`はログイン必須・同一Origin限定です。入力本文を230KBに制限し、秘密情報やGoogleのエラー本文は返しません。静的公開版では使用できません。
+
+検証：型チェック（エラー・警告0）、DB統合テストを含む95テスト成功、Nodeビルド成功。停止状態・入力検証・接続先変更・非JPY・再送・競合・通信失敗・DB失敗・Reviewの確認操作を検証しました。ブラウザ接続が利用できず目視確認は未実施です。次に行う作業は、ローカル画面のReviewで実際のテスト用Creativeを確認し、テストアカウントへの作成を検証することです。
+
+仕様参照：[一括Mutateと一時ID](https://developers.google.com/google-ads/api/docs/mutating/best-practices)、[Campaign v25の配信日時](https://developers.google.com/google-ads/api/reference/rpc/v25/Campaign)、[ImageAdの画像データ](https://developers.google.com/google-ads/api/reference/rpc/v25/ImageAdInfo)。
+
+### 入稿前検証の修正（2026-09-09）
+
+ユーザーの初回テストで汎用エラーを表示。送信記録0件を確認し、検証専用APIで画像広告の`display_url`不足（REQUIRED）を再現しました。Landing Pageのホスト名を`displayUrl`に設定するよう修正し、代替の300×250 PNGでGoogle Adsの`validateOnly`がHTTP 200となることを確認しました。ユーザーのCreativeそのものの再検証・実作成は未実施です。入稿前検証失敗時は作成前であることと既知のエラーコードを表示するよう改善しました。次回は元のReviewから同じ内容で再操作し、結果を確認します。
+
+
+### 初回入稿成功・現在の再開位置（2026-09-09）
+
+ユーザーが再入力・下書き保存後に入稿し、「停止状態で入稿済みです」の表示と以下の作成リソースを共有しました。実テストアカウントへの作成とアプリの成功表示を確認済みです。上記の「実作成は未実施」という記述はこの確認前の記録です。
+
+- 記録ID：`b6635e9e-c070-4cc0-bf36-5bb536603f36`
+- テストアカウント：`1828902919`
+- Budget：`15857178125`
+- Campaign：`24225128295`
+- 配信条件：`24225128295~2392`（日本）、`24225128295~1005`（日本語）
+- Ad Group：`198350331005`
+- Ad Group Ad：`198350331005~823936344384`
+
+次はGoogle Ads側のCampaign・Ad Group・広告の状態を読み取り、PAUSEDであることを確認します。作成時はすべてPAUSEDを指定していますが、作成後の独立した状態確認は未実施です。本番公開・本番出稿は未実施です。
+
+今回、開発中のリロードで未保存の入力が消失しました。ユーザーは再入力後に下書き保存して成功しています。未保存フォームの復元は今後の改善候補です。
