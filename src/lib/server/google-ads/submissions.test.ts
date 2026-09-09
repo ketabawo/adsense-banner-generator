@@ -19,12 +19,11 @@ beforeEach(() => {
 });
 it('creates an atomic paused display campaign with dates and Japan/Japanese criteria', () => {
   const ops = buildOperations(parseSubmission(body()), '2222222222', 'marker');
-  expect(ops[1].campaignOperation?.create).toMatchObject({ status: 'PAUSED', startDateTime: '2099-01-01 00:00:00', endDateTime: '2099-01-02 23:59:59', targetSpend: {} });
-  expect(ops[4].adGroupOperation?.create.status).toBe('PAUSED');
-  expect(ops[5].adGroupAdOperation?.create.status).toBe('PAUSED');
-  expect(ops[5].adGroupAdOperation?.create.ad).toMatchObject({ displayUrl: 'example.com', finalUrls: ['https://example.com'] });
-  expect(ops[2].campaignCriterionOperation?.create.location?.geoTargetConstant).toBe('geoTargetConstants/2392');
-  expect(ops[3].campaignCriterionOperation?.create.language?.languageConstant).toBe('languageConstants/1005');
+  expect(ops[1]).toMatchObject({ campaignOperation: { create: { status: 'PAUSED', startDateTime: '2099-01-01 00:00:00', endDateTime: '2099-01-02 23:59:59', targetSpend: {} } } });
+  expect(ops[4]).toMatchObject({ adGroupOperation: { create: { status: 'PAUSED' } } });
+  expect(ops[5]).toMatchObject({ adGroupAdOperation: { create: { status: 'PAUSED', ad: { displayUrl: 'example.com', finalUrls: ['https://example.com'] } } } });
+  expect(ops[2]).toMatchObject({ campaignCriterionOperation: { create: { location: { geoTargetConstant: 'geoTargetConstants/2392' } } } });
+  expect(ops[3]).toMatchObject({ campaignCriterionOperation: { create: { language: { languageConstant: 'languageConstants/1005' } } } });
 });
 it.each([NaN, Infinity, -1, 0])('rejects invalid budgets %s', (value) => {
   const input = body(); input.draft.dailyBudget = value; expect(() => parseSubmission(input)).toThrow();
@@ -81,4 +80,25 @@ it('does not reserve or create resources when Google validation fails', async ()
   await expect(submitCampaign('owner', body())).rejects.toThrow('広告はまだ作成していません');
   expect(mocks.query).toHaveBeenCalledTimes(1);
   expect(mocks.mutate.mock.calls[0][3].validateOnly).toBe(true);
+});
+
+it('maps multiple prefectures and content keywords to the correct Display resources', () => {
+  const input = parseSubmission({ ...body(), ads: { ...body().ads, targeting: {
+    locations: { countryCode: 'JP', scope: 'prefectures', prefectureCodes: ['JP-14', 'JP-13'] },
+    keywords: { kind: 'display_content', terms: ['ZX-10', 'ZXT00A'] }, languages: ['ja']
+  } } });
+  const ops = buildOperations(input, '2222222222', 'test');
+  expect(ops).toHaveLength(9);
+  expect(JSON.stringify(ops)).not.toContain('geoTargetConstants/2392');
+  expect(ops).toContainEqual({ campaignCriterionOperation: { create: { campaign: 'customers/2222222222/campaigns/-2', location: { geoTargetConstant: 'geoTargetConstants/20637' } } } });
+  expect(ops).toContainEqual({ adGroupCriterionOperation: { create: { adGroup: 'customers/2222222222/adGroups/-3', status: 'ENABLED', negative: false, keyword: { text: 'ZX-10', matchType: 'BROAD' } } } });
+  expect(ops.find(o => 'adGroupOperation' in o)).toMatchObject({ adGroupOperation: { create: { optimizedTargetingEnabled: false } } });
+});
+
+it('saves the variable number of targeting results', async () => {
+  const input = { ...body(), ads: { ...body().ads, targeting: { locations: { countryCode: 'JP', scope: 'prefectures', prefectureCodes: ['JP-14', 'JP-13'] }, keywords: { kind: 'display_content', terms: ['ZX-10'] }, languages: ['ja'] } } };
+  const operations = buildOperations(parseSubmission(input), '2222222222', 'test');
+  mocks.mutate.mockResolvedValueOnce({}).mockResolvedValueOnce({ mutateOperationResponses: operations.map((o, i) => ({ [Object.keys(o)[0].replace(/Operation$/, 'Result')]: { resourceName: `customers/2222222222/campaignCriteria/${i + 1}` } })) });
+  const result = await submitCampaign('owner', input);
+  expect(result.state).toBe('succeeded'); expect(Object.keys(result.resources)).toHaveLength(8);
 });

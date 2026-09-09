@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { targetingFor, locationLabel } from '$lib/targeting/rules';
   import AdsSubmission from './AdsSubmission.svelte';
   import { tick } from 'svelte';
   import { drawBanner } from '$lib/banner/drawBanner';
@@ -84,7 +85,8 @@
     <dl>
       <div><dt>広告</dt><dd>{ads.adName}</dd></div>
       <div><dt>配信先</dt><dd>Google Ads / ディスプレイ</dd></div>
-      <div><dt>地域・言語</dt><dd>{ads.location}・日本語</dd></div>
+      <div><dt>掲載コンテンツKW</dt><dd>{targetingFor(ads).keywords.terms.filter(t => t.trim()).join("・") || "指定なし"}</dd></div>
+      <div><dt>地域・言語</dt><dd>{locationLabel(targetingFor(ads))}・日本語</dd></div>
     </dl>
   </div>
   <div class="notice">安全のため、実際のAPI入稿時も一時停止状態で作成します。</div>

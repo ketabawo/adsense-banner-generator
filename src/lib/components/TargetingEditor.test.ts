@@ -1,0 +1,22 @@
+import { fireEvent, render, screen } from '@testing-library/svelte';
+import { expect, it } from 'vitest';
+import TargetingHarness from '../../test/TargetingHarness.svelte';
+it('selects prefectures, saves keyword lines and restores after switching nationwide', async () => {
+  render(TargetingHarness);
+  expect(screen.getByLabelText('日本全国')).toBeChecked();
+  await fireEvent.click(screen.getByLabelText('都道府県を選択（複数可）'));
+  expect(screen.getAllByRole('checkbox')).toHaveLength(47);
+  await fireEvent.click(screen.getByLabelText('神奈川県'));
+  await fireEvent.click(screen.getByLabelText('東京都'));
+  await fireEvent.input(screen.getByRole('textbox'), { target: { value: 'GPZ1000RX\nZX-10\nZXT00A\nZXT00B\n' } });
+  await fireEvent.click(screen.getByText('保存テスト'));
+  const saved = JSON.parse(screen.getByRole('status').textContent!);
+  expect(saved.locations.prefectureCodes).toEqual(['JP-13', 'JP-14']);
+  expect(saved.keywords.terms).toEqual(['GPZ1000RX', 'ZX-10', 'ZXT00A', 'ZXT00B']);
+  await fireEvent.click(screen.getByLabelText('日本全国'));
+  expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+  await fireEvent.click(screen.getByText('復元テスト'));
+  expect(screen.getByLabelText('神奈川県')).toBeChecked();
+  expect(screen.getByLabelText('東京都')).toBeChecked();
+  expect(screen.getByRole('textbox')).toHaveValue('GPZ1000RX\nZX-10\nZXT00A\nZXT00B');
+});

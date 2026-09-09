@@ -1,3 +1,4 @@
+import { parseTargeting } from '$lib/targeting/rules';
 import type { Campaign } from '$lib/types/campaign';
 
 const STORAGE_KEY = 'studio.campaigns.v1';
@@ -41,6 +42,9 @@ function isCreativeSource(value: unknown) {
 
 function isCampaign(value: unknown): value is Campaign {
   if (!isRecord(value) || !isRecord(value.targetKpi) || !isRecord(value.creative) || !isRecord(value.googleAds)) return false;
+  if (value.googleAds.targeting !== undefined) {
+    try { parseTargeting(value.googleAds.targeting); } catch { return false; }
+  }
   const source = value.creative.source;
   return typeof value.id === 'string'
     && typeof value.name === 'string'

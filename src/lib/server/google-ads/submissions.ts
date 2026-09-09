@@ -12,7 +12,10 @@ export async function submitCampaign(subject: string, body: unknown) {
   const account = await verifyTestAccount(subject, connection.customerId, connection.loginCustomerId);
   if (account.currencyCode !== 'JPY') throw new SubmissionInputError('円建て（JPY）のテストアカウントを選択してください。');
   const db = database();
-  const fingerprint = createHash('sha256').update(JSON.stringify(input)).digest('hex');
+  // Preserve fingerprints for pre-targeting nationwide submissions. Normalize sets for replay safety.
+  const { targeting, ...baseInput } = input;
+  const legacyDefault = targeting.locations.scope === 'country' && !targeting.keywords.terms.length;
+  const fingerprint = createHash('sha256').update(JSON.stringify(legacyDefault ? baseInput : { ...baseInput, targeting: { ...targeting, keywords: { ...targeting.keywords, terms: [...targeting.keywords.terms].map(t => t.toLowerCase()).sort() } } })).digest('hex');
   const params = [subject, account.customerId, fingerprint];
   const previous = await db.query('SELECT id, state, resources FROM google_ads_submissions WHERE google_subject = $1 AND customer_id = $2 AND fingerprint = $3', params);
   if (previous.rows[0]) return previous.rows[0];
@@ -36,7 +39,7 @@ export async function submitCampaign(subject: string, body: unknown) {
     const response = await mutateTestResources(subject, account.customerId, account.loginCustomerId, {
       mutateOperations, partialFailure: false, validateOnly: false
     });
-    const expected = ['campaignBudgetResult', 'campaignResult', 'campaignCriterionResult', 'campaignCriterionResult', 'adGroupResult', 'adGroupAdResult'];
+    const expected = mutateOperations.map(operation => Object.keys(operation)[0].replace(/Operation$/, 'Result'));
     const rows = response.mutateOperationResponses;
     if (!rows || rows.length !== expected.length) throw new Error('Incomplete response');
     const resources: Record<string, string> = {};

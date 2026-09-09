@@ -1,3 +1,5 @@
+import { parseTargeting, legacyTargeting } from '$lib/targeting/rules';
+import { PREFECTURES } from '$lib/targeting/locations';
 import { BANNER_SIZES } from '$lib/banner/sizes';
 
 export class SubmissionInputError extends Error {}
@@ -23,7 +25,9 @@ export function parseSubmission(value: unknown) {
   const name = text(draft.name, 'Campaign名', 100), adName = text(ads.adName, '広告名', 100);
   const landingPageUrl = text(draft.landingPageUrl, 'URL', 2048);
   try { const url = new URL(landingPageUrl); if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) throw 0; } catch { fail('Landing Page URLを正しく入力してください。'); }
-  if (ads.location !== '日本') fail('現在のテスト入稿は配信地域「日本」のみ対応しています。');
+  let targeting;
+  try { targeting = parseTargeting(ads.targeting ?? legacyTargeting(typeof ads.location === 'string' ? ads.location : '')); }
+  catch (error) { fail((error as Error).message); }
   if (!['maximize_clicks', 'maximize_conversions'].includes(String(ads.bidding))) fail('入札方針が正しくありません。');
   if (!['traffic', 'conversion'].includes(String(draft.objective)) || !['cpc', 'cpa'].includes(String(kpi.type))) fail('目的・目標KPIが正しくありません。');
   if (body.noEuPoliticalAds !== true) fail('EU政治広告を含まないことを確認してください。');
@@ -37,7 +41,7 @@ export function parseSubmission(value: unknown) {
   const width = data.readUInt32BE(16), height = data.readUInt32BE(20);
   if (!BANNER_SIZES.some(s => s.width === width && s.height === height)) fail('入稿画像をエディタの対応広告サイズにしてください。');
   return { name, adName, landingPageUrl, dailyBudget: money(draft.dailyBudget), targetKpi: { type: kpi.type as string, value: money(kpi.value) }, objective: draft.objective as string,
-    startDate, endDate, bidding: ads.bidding as string, image: data.toString('base64') };
+    startDate, endDate, bidding: ads.bidding as string, image: data.toString('base64'), targeting };
 }
 export type SubmissionInput = ReturnType<typeof parseSubmission>;
 
@@ -50,9 +54,10 @@ export function buildOperations(input: SubmissionInput, customer: string, marker
       ...(input.bidding === 'maximize_clicks' ? { targetSpend: {} } : { maximizeConversions: {} }),
       networkSettings: { targetGoogleSearch: false, targetSearchNetwork: false, targetContentNetwork: true },
       geoTargetTypeSetting: { positiveGeoTargetType: 'PRESENCE' } } } },
-    { campaignCriterionOperation: { create: { campaign, location: { geoTargetConstant: 'geoTargetConstants/2392' } } } },
+    ...(input.targeting.locations.scope === 'country' ? ['2392'] : input.targeting.locations.prefectureCodes.map(code => PREFECTURES.find(p => p.code === code)!.geoId)).map(id => ({ campaignCriterionOperation: { create: { campaign, location: { geoTargetConstant: `geoTargetConstants/${id}` } } } })),
     { campaignCriterionOperation: { create: { campaign, language: { languageConstant: 'languageConstants/1005' } } } },
-    { adGroupOperation: { create: { resourceName: group, name: `${input.adName} ${marker}`, campaign, status: 'PAUSED', type: 'DISPLAY_STANDARD' } } },
+    { adGroupOperation: { create: { resourceName: group, name: `${input.adName} ${marker}`, campaign, status: 'PAUSED', type: 'DISPLAY_STANDARD', optimizedTargetingEnabled: false } } },
+    ...input.targeting.keywords.terms.map(text => ({ adGroupCriterionOperation: { create: { adGroup: group, status: 'ENABLED', negative: false, keyword: { text, matchType: 'BROAD' } } } })),
     { adGroupAdOperation: { create: { adGroup: group, status: 'PAUSED', ad: { name: input.adName, finalUrls: [input.landingPageUrl], displayUrl: new URL(input.landingPageUrl).hostname, imageAd: { data: input.image } } } } }
   ];
 }

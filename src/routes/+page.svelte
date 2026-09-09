@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { defaultTargeting, targetingFor, parseTargeting, locationLabel } from '$lib/targeting/rules';
   import GoogleAccount from '$lib/components/GoogleAccount.svelte';
   import GoogleAdsConnection from '$lib/components/GoogleAdsConnection.svelte';
   let accountEmail = $state('');
@@ -44,7 +45,7 @@
     endDate: '',
     targetKpi: { type: 'cpc', value: undefined }
   });
-  let googleAds = $state<GoogleAdsDraft>({ adName: '', location: '日本', bidding: 'maximize_clicks' });
+  let googleAds = $state<GoogleAdsDraft>({ adName: '', location: '日本', targeting: defaultTargeting(), bidding: 'maximize_clicks' });
   let savedSnapshot = $state('');
 
   function currentSnapshot() {
@@ -296,7 +297,8 @@
         channel: 'google_ads',
         campaignType: 'display',
         adName: googleAds.adName.trim(),
-        location: googleAds.location.trim(),
+        location: locationLabel(targetingFor(googleAds)),
+        targeting: parseTargeting(targetingFor(googleAds)),
         language: 'ja',
         bidding: googleAds.bidding,
         initialState: 'paused'
@@ -348,6 +350,7 @@
     draft.targetKpi.type = 'cpc';
     googleAds.adName = '';
     googleAds.location = '日本';
+    googleAds.targeting = defaultTargeting();
     googleAds.bidding = 'maximize_clicks';
     creative = createDefaultCreativeState();
     backgroundImage = undefined;
@@ -378,6 +381,7 @@
     }));
     googleAds.adName = selected.googleAds?.adName ?? `${selected.name} バナー広告`;
     googleAds.location = selected.googleAds?.location ?? '日本';
+    googleAds.targeting = structuredClone(targetingFor(selected.googleAds));
     googleAds.bidding = selected.googleAds?.bidding ?? (selected.objective === 'conversion' ? 'maximize_conversions' : 'maximize_clicks');
     creativeName = selected.creative.name;
     selectedLibraryCreative = undefined;

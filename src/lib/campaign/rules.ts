@@ -1,3 +1,4 @@
+import { parseTargeting, targetingFor } from '$lib/targeting/rules';
 import type { Campaign, CampaignDraft, GoogleAdsBidding, GoogleAdsDraft } from '$lib/types/campaign';
 
 export type CampaignValidation = {
@@ -36,6 +37,8 @@ export function validateCampaignDraft(draft: CampaignDraft, googleAds: GoogleAds
   if (!googleAds.adName.trim() || !googleAds.location.trim()) {
     return { valid: false, message: 'Google Adsの広告名と配信地域を入力してください。', dateError: '' };
   }
+  try { parseTargeting(targetingFor(googleAds)); }
+  catch (error) { return { valid: false, message: (error as Error).message, dateError: '' }; }
   return { valid: true, message: '', dateError: '' };
 }
 

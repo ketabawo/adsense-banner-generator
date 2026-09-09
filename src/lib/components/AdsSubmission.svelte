@@ -36,7 +36,7 @@
 </script>
 <div class="submission">
   <h3>テストアカウントへ入稿</h3>
-  <p>日本・日本語／JPY口座、対応サイズのPNG（150KB以下）で作成します。目標KPIは管理用の目安で、入札単価の上限には設定しません。</p>
+  <p>選択した地域・日本語／JPY口座、対応サイズのPNG（150KB以下）で作成します。目標KPIは管理用の目安で、入札単価の上限には設定しません。</p>
   <p>Campaign・広告グループ・広告はすべて停止状態で作成します。</p>
   <button disabled={busy} onclick={loadAccount}>接続先を確認</button>
   {#if customerId}

@@ -1,3 +1,4 @@
+import type { Targeting } from './targeting';
 import type { Creative } from './creative';
 
 export type CampaignObjective = 'traffic' | 'conversion';
@@ -8,7 +9,9 @@ export type GoogleAdsSettings = {
   channel: 'google_ads';
   campaignType: 'display';
   adName: string;
+  /** Legacy display label; targeting is authoritative when present. */
   location: string;
+  targeting?: Targeting;
   language: 'ja';
   bidding: GoogleAdsBidding;
   initialState: 'paused';
