@@ -37,7 +37,8 @@ export function customerId(value: unknown): string {
 }
 
 type Customer = { id?: string; descriptiveName?: string; manager?: boolean; testAccount?: boolean; currencyCode?: string; timeZone?: string; status?: string };
-type Row = { customer?: Customer; customerClient?: Customer & { clientCustomer?: string } };
+export type AdsReportRow = { campaign?: { id?: string; name?: string; status?: string }; segments?: { date?: string }; metrics?: { impressions?: string; clicks?: string; costMicros?: string; conversions?: number } };
+type Row = AdsReportRow & { customer?: Customer; customerClient?: Customer & { clientCustomer?: string } };
 type ApiResponse = { resourceNames?: string[]; results?: Row[]; nextPageToken?: string; mutateOperationResponses?: Record<string, { resourceName?: string }>[] };
 
 async function reader(subject: string) {
@@ -124,4 +125,9 @@ export async function verifyTestAccount(subject: string, id: string, login: stri
   const row = (await api.search(customerId(id), login === null ? null : customerId(login), CUSTOMER_QUERY))[0]?.customer;
   if (!row || row.id !== id) throw new AdsError('INVALID');
   return asAccount(row, login);
+}
+
+// Read-only reporting; callers restrict campaign IDs to the authenticated owner's submissions.
+export async function searchAdsReport(subject: string, id: string, login: string | null, query: string): Promise<AdsReportRow[]> {
+  return (await reader(subject)).search(id, login, query);
 }

@@ -1,8 +1,10 @@
 <script lang="ts">
+  import PerformanceDashboard from '$lib/components/PerformanceDashboard.svelte';
   import { defaultTargeting, targetingFor, parseTargeting, locationLabel } from '$lib/targeting/rules';
   import GoogleAccount from '$lib/components/GoogleAccount.svelte';
   import GoogleAdsConnection from '$lib/components/GoogleAdsConnection.svelte';
   let accountEmail = $state('');
+  let adsConnectionKey = $state('');
   import BannerEditor from '$lib/components/BannerEditor.svelte';
   import BannerPreview from '$lib/components/BannerPreview.svelte';
   import CampaignSetup from '$lib/components/CampaignSetup.svelte';
@@ -432,7 +434,12 @@
     <div><h1>Campaignを作成</h1><p>Campaign設定とCreativeをまとめて下書き保存します。</p></div>
     <div class="privacy"><span>✓</span><div><strong>Creativeはブラウザ内で編集</strong><small>編集・下書き保存はブラウザ内。入稿時は画像と広告設定をstudioサーバー経由でGoogle Adsへ送信します。</small></div></div>
   </div>
-  {#if accountEmail}{#key accountEmail}<GoogleAdsConnection />{/key}{/if}
+  {#if accountEmail}
+    {#key accountEmail}
+      <GoogleAdsConnection onConnectionChange={(key) => adsConnectionKey = key} />
+      {#key adsConnectionKey}<PerformanceDashboard />{/key}
+    {/key}
+  {/if}
   <CampaignList {campaigns} activeId={editingId} onCreate={createCampaign} onEdit={editCampaign} onDelete={deleteCampaign} />
   <CampaignSetup {draft} {dateError} onObjectiveChange={syncObjective} />
   <section class="creative-step">

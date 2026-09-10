@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import type { AdsAccount, AdsConnectionStatus } from '$lib/types/google-ads';
+  let { onConnectionChange }: { onConnectionChange?: (key: string) => void } = $props();
   let status = $state<AdsConnectionStatus>();
   let accounts = $state<AdsAccount[]>([]);
   let message = $state('');
@@ -13,6 +14,7 @@
       const response = await fetch('/api/google-ads/status', { cache: 'no-store' });
       if (!response.ok) throw new Error();
       status = await response.json();
+      onConnectionChange?.(`${status?.customerId ?? ""}:${status?.loginCustomerId ?? ""}:${status?.authorized ?? false}`);
     } catch { message = 'Google Adsの接続状態を確認できませんでした。'; }
   }
   async function listAccounts() {
@@ -77,11 +79,11 @@
 </section>
 <style>
   .ads-connection { margin-bottom: 22px; padding: 18px; border: 1px solid #bfdbfe; border-radius: 5px; background: #f8fbff; }
-  h2 { margin: 0 0 10px; font-size: 14px; } h2 span { margin-left: 10px; padding: 3px 7px; border-radius: 6px; background: #fff7ed; color: #9a3412; font-size: 11px; }
+  h2 { margin: 0 0 10px; font-size: 14px; } h2 span { margin-left: 10px; padding: 3px 7px; border-radius: 5px; background: #fff7ed; color: #9a3412; font-size: 11px; }
   p { margin: 6px 0; color: #64748b; font-size: 12px; overflow-wrap: anywhere; } .selected { color: #047857; font-weight: 650; }
   .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
   button { border: 0; border-radius: 5px; padding: 10px 14px; color: white; background: #2563eb; cursor: pointer; font: inherit; font-size: 12px; }
   button:disabled { opacity: .5; cursor: wait; } button:focus-visible { outline: 3px solid #93c5fd; outline-offset: 3px; }
-  ul { padding: 0; list-style: none; } li { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 10px; padding: 12px; border: 1px solid #dbe3ef; background: white; border-radius: 10px; } strong { font-size: 13px; }
+  ul { padding: 0; list-style: none; } li { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 10px; padding: 12px; border: 1px solid #dbe3ef; background: white; border-radius: 5px; } strong { font-size: 13px; }
   @media (max-width: 600px) { li { flex-direction: column; align-items: flex-start; } }
 </style>

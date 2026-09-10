@@ -1,6 +1,6 @@
 <svelte:head>
   <title>プライバシーポリシー | studio.ketabawo.asia</title>
-  <meta name="description" content="studioのCreative、Googleログイン、Google Ads接続・入稿におけるデータの取り扱い。" />
+  <meta name="description" content="studioのCreative、Googleログイン、Google Ads接続・入稿・AI相談におけるデータの取り扱い。" />
 </svelte:head>
 
 <main>
@@ -8,8 +8,8 @@
   <article>
     <p class="brand">studio.ketabawo.asia</p>
     <h1>プライバシーポリシー</h1>
-    <p class="updated">最終更新日：2026年9月9日</p>
-    <p>studioは、CampaignとCreativeの作成・保存およびGoogle Adsへのテスト入稿を支援するツールです。このページは現在の実装におけるデータの取り扱いを説明します。現在は開発者本人が利用する開発版です。</p>
+    <p class="updated">最終更新日：2026年9月10日</p>
+    <p>studioは、CampaignとCreativeの作成・保存およびGoogle Adsへのテスト入稿、実績確認とAI相談を支援するツールです。このページは現在の実装におけるデータの取り扱いを説明します。現在は開発者本人が利用する開発版です。</p>
 
     <section aria-labelledby="local">
       <h2 id="local">1. Creativeと下書き</h2>
@@ -22,18 +22,21 @@
       <p>GoogleログインではGoogleアカウントの識別子と確認済みメールアドレスを取得し、本人確認と利用許可の判定に使用します。これらの情報とログインセッションの管理情報をstudioサーバーのデータベースへ保存します。</p>
       <p>Google Adsへの接続はログインとは別に許可を求めます。許可後は、アクセス可能な広告アカウントのID、名称、アカウント種別、通貨、タイムゾーンなどを取得し、接続先の表示とテストアカウントであることの確認に使用します。選択した広告アカウントIDと経由するマネージャーIDを保存します。</p>
       <p>ログイン状態の維持と認可手続きの確認にCookieを使用します。サーバーにはセッショントークンそのものではなくハッシュを保存します。これらのCookieは広告追跡を目的とするものではありません。</p>
-      <p>接続を維持するためのrefresh tokenは暗号化してサーバーに保存します。Googleアカウントのパスワードをstudioが取得・保存することはありません。取得した情報は本人確認、接続、入稿およびその結果の管理に使用します。</p>
+      <p>接続を維持するためのrefresh tokenは暗号化してサーバーに保存します。Googleアカウントのパスワードをstudioが取得・保存することはありません。取得した情報は本人確認、接続、入稿、広告実績の表示およびその結果の管理に使用します。</p>
     </section>
 
     <section aria-labelledby="submission">
       <h2 id="submission">3. 入稿時に送信する情報</h2>
       <p>Reviewで広告作成を実行すると、広告画像とCampaign・広告設定をブラウザからstudioサーバーへ送信します。サーバーは画像、広告名、リンク先URL、予算、期間、入札設定、地域、言語、キーワードなど、入稿に必要な情報をGoogle Adsへ送信します。Google側での入稿前検証にも画像と入稿情報を送信します。</p>
       <p>現在はテスト用広告アカウントへの停止状態での作成に限定しています。送信結果の管理と二重作成防止のため、利用者・広告アカウントとの関連、入力内容のハッシュ、記録ID、処理状態、作成リソースID、日時をサーバーに保存します。現在の実装では入稿画像や入力全文をサーバーのデータベースへ保存しません。Googleへ送信した画像と広告情報はGoogle側でも取り扱われます。</p>
+      <p>Dashboardの更新時には、本人の入稿成功記録を使い、Campaignの名称・状態と、指定期間の表示回数・クリック数・費用・コンバージョンなどをGoogle Adsからstudioサーバー経由で取得して表示します。取得した実績はデータベースやブラウザストレージへ永続保存しません。</p>
     </section>
 
     <section aria-labelledby="sharing">
       <h2 id="sharing">4. 外部サービスへの提供</h2>
-      <p>GoogleログインとGoogle Adsの機能にはGoogleのサービスを使用します。Google側の取り扱いは<a href="https://policies.google.com/privacy">Googleのプライバシーポリシー</a>もご確認ください。現在のstudioには、広告・アクセス解析用のトラッカーや、Creative・広告データをAIサービスへ送信する機能を実装していません。</p>
+      <p>GoogleログインとGoogle Adsの機能にはGoogleのサービスを使用します。Google側の取り扱いは<a href="https://policies.google.com/privacy">Googleのプライバシーポリシー</a>もご確認ください。現在のstudioには、広告・アクセス解析用のトラッカーを実装していません。</p>
+      <p>AI相談の送信操作を行うと、選択したCampaignの名称・状態、集計期間・タイムゾーン・通貨・取得日時、合計と日別実績、および質問と直近3往復までの会話を、studioサーバーからOpenAI APIへ送信します。回答は広告運用の説明・相談・改善提案に使用し、広告設定を変更しません。画像・Googleの認証情報・メールアドレス・広告アカウントIDを自動でAIへ添付することはありません。質問やCampaign名に含まれる情報は送信対象になります。</p>
+      <p>会話は利用中の画面内に保持し、studioのデータベースやブラウザストレージへ永続保存しません。Campaign・期間の切替、実績更新、再読み込み、ログアウトで画面内の会話は消えます。OpenAIにはレスポンスを保存しない設定（store: false）でリクエストしますが、これは不正利用監視などを含むすべての保持を無効にする設定ではありません。OpenAI側の扱いは<a href="https://developers.openai.com/api/docs/guides/your-data">APIのデータ管理に関する説明</a>をご確認ください。</p>
       <p>Googleから取得した利用者データの利用・転送は、<a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>および適用されるLimited Use要件に従います。利用者データの販売や、このページで説明した機能と無関係な目的への利用は行いません。</p>
     </section>
 
