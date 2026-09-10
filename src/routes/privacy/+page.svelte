@@ -9,7 +9,7 @@
     <p class="brand">studio.ketabawo.asia</p>
     <h1>プライバシーポリシー</h1>
     <p class="updated">最終更新日：2026年9月10日</p>
-    <p>studioは、CampaignとCreativeの作成・保存およびGoogle Adsへのテスト入稿、実績確認とAI相談を支援するツールです。このページは現在の実装におけるデータの取り扱いを説明します。現在は開発者本人が利用する開発版です。</p>
+    <p>studioは、CampaignとCreativeの作成・保存およびGoogle Adsへのテスト入稿、実績確認・AI相談・変更案の確認と承認を支援するツールです。このページは現在の実装におけるデータの取り扱いを説明します。現在は開発者本人が利用する開発版です。</p>
 
     <section aria-labelledby="local">
       <h2 id="local">1. Creativeと下書き</h2>
@@ -32,11 +32,16 @@
       <p>Dashboardの更新時には、本人の入稿成功記録を使い、Campaignの名称・状態と、指定期間の表示回数・クリック数・費用・コンバージョンなどをGoogle Adsからstudioサーバー経由で取得して表示します。取得した実績はデータベースやブラウザストレージへ永続保存しません。</p>
     </section>
 
+    <section aria-labelledby="plans">
+      <h2 id="plans">変更案と承認の記録</h2>
+      <p>Execution Planでは、Google Adsから取得したCampaign名・停止状態・予算情報と取得日時、利用者・広告アカウント・Campaignとの関連、変更前後の値、変更理由、作成日時、承認・取消などの状態と状態更新日時をサーバーのデータベースに保存します。変更案を取り消しても記録は残ります。承認時にはGoogle Adsの現在値を再取得して比較します。現在の承認操作は記録の保存までで、Google Adsの設定への反映は行いません。</p>
+    </section>
+
     <section aria-labelledby="sharing">
       <h2 id="sharing">4. 外部サービスへの提供</h2>
       <p>GoogleログインとGoogle Adsの機能にはGoogleのサービスを使用します。Google側の取り扱いは<a href="https://policies.google.com/privacy">Googleのプライバシーポリシー</a>もご確認ください。現在のstudioには、広告・アクセス解析用のトラッカーを実装していません。</p>
       <p>AI相談の送信操作を行うと、選択したCampaignの名称・状態、集計期間・タイムゾーン・通貨・取得日時、合計と日別実績、および質問と直近3往復までの会話を、studioサーバーからOpenAI APIへ送信します。回答は広告運用の説明・相談・改善提案に使用し、広告設定を変更しません。画像・Googleの認証情報・メールアドレス・広告アカウントIDを自動でAIへ添付することはありません。質問やCampaign名に含まれる情報は送信対象になります。</p>
-      <p>会話は利用中の画面内に保持し、studioのデータベースやブラウザストレージへ永続保存しません。Campaign・期間の切替、実績更新、再読み込み、ログアウトで画面内の会話は消えます。OpenAIにはレスポンスを保存しない設定（store: false）でリクエストしますが、これは不正利用監視などを含むすべての保持を無効にする設定ではありません。OpenAI側の扱いは<a href="https://developers.openai.com/api/docs/guides/your-data">APIのデータ管理に関する説明</a>をご確認ください。</p>
+      <p>会話は利用中の画面内に保持し、studioのデータベースやブラウザストレージへ永続保存しません。ただし、AI提案を変更理由に引き継いで変更案を保存した場合、その抜粋は変更案の一部としてサーバーに保存します。Campaign・期間の切替、実績更新、再読み込み、ログアウトで画面内の会話は消えます。OpenAIにはレスポンスを保存しない設定（store: false）でリクエストしますが、これは不正利用監視などを含むすべての保持を無効にする設定ではありません。OpenAI側の扱いは<a href="https://developers.openai.com/api/docs/guides/your-data">APIのデータ管理に関する説明</a>をご確認ください。</p>
       <p>Googleから取得した利用者データの利用・転送は、<a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>および適用されるLimited Use要件に従います。利用者データの販売や、このページで説明した機能と無関係な目的への利用は行いません。</p>
     </section>
 
@@ -44,7 +49,7 @@
       <h2 id="retention">5. 保存期間・削除・接続解除</h2>
       <p>ブラウザ内のCampaignとCreativeは、各一覧の削除操作、またはブラウザ設定からこのサイトの保存データを削除できます。CampaignとCreativeライブラリは別に管理しているため、それぞれの保存内容をご確認ください。ブラウザのデータ削除では、studioサーバーやGoogle Ads側のデータは削除されません。</p>
       <p>ログインセッションの有効期間は7日間、ログイン・接続の認可手続きの有効期間は10分間です。期限切れ後は認証に使用できず、関連するログイン処理で期限切れの記録を削除します。ログアウトすると現在のセッションを削除します。</p>
-      <p>利用者情報、Ads接続情報、入稿記録には、現在、自動削除の期限やアプリ内の一括削除機能を設けていません。本人利用の開発環境では、開発者本人がサーバーの保存データを管理・削除します。</p>
+      <p>利用者情報、Ads接続情報、入稿記録、変更案と承認・取消の状態には、現在、自動削除の期限やアプリ内の一括削除機能を設けていません。本人利用の開発環境では、開発者本人がサーバーの保存データを管理・削除します。</p>
       <p>Googleへのアクセス許可はGoogleアカウントの「サードパーティとの接続」設定から取り消せます。ログアウトだけではAdsの許可は取り消されません。許可の取り消しだけでは、保存済みのstudioのデータやGoogle Ads上に作成した広告は削除されません。Google Ads側の広告はGoogle Adsで管理してください。</p>
     </section>
 

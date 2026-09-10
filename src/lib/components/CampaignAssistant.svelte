@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import type { AssistantMessage, AssistantReply } from '$lib/types/assistant';
-  let { customerId, campaignId, days, start, end }: { customerId: string; campaignId: string; days: number; start: string; end: string } = $props();
+  let { customerId, campaignId, days, start, end, onPlanReason }: { onPlanReason?: (reason: string) => void; customerId: string; campaignId: string; days: number; start: string; end: string } = $props();
   let configured = $state<boolean | null>(null);
   let checking = $state(true), busy = $state(false), message = $state(''), question = $state('');
   let turns = $state<{ question: string; reply: AssistantReply }[]>([]);
@@ -61,7 +61,7 @@
             {#if turn.reply.advice.observations.length}<h4>実績から分かること</h4><ul>{#each turn.reply.advice.observations as text}<li>{text}</li>{/each}</ul>{/if}
             {#if turn.reply.advice.limitations.length}<h4>判断の限界・不足データ</h4><ul>{#each turn.reply.advice.limitations as text}<li>{text}</li>{/each}</ul>{/if}
             {#if turn.reply.advice.recommendations.length}<h4>確認事項・改善案</h4><div class="recommendations">{#each turn.reply.advice.recommendations as item}
-              <div class="recommendation"><strong>{item.title}</strong><p>根拠：{item.reason}</p><p>次の確認：{item.nextStep}</p></div>
+              <div class="recommendation"><strong>{item.title}</strong><p>根拠：{item.reason}</p><p>次の確認：{item.nextStep}</p>{#if onPlanReason}<button class="secondary" onclick={() => onPlanReason?.(`${item.title}\n根拠：${item.reason}\n次の確認：${item.nextStep}`)}>理由を変更案に引き継ぐ</button>{/if}</div>
             {/each}</div>{/if}
             <p class="metadata">参照期間：{turn.reply.context.start} ～ {turn.reply.context.end} ／ 実績の再取得：{new Date(turn.reply.context.fetchedAt).toLocaleString('ja-JP')}</p>
           </div>

@@ -5,7 +5,7 @@ const report = { account: { name: 'Test', customerId: '2222222222', currencyCode
 afterEach(() => vi.unstubAllGlobals());
 describe('PerformanceDashboard', () => {
   it('shows successful empty metrics and clears results when the period changes', async () => {
-    const fetcher = vi.fn().mockImplementation((url) => Promise.resolve(new Response(JSON.stringify(url === '/api/assistant' ? { configured: false } : report))));
+    const fetcher = vi.fn().mockImplementation((url) => Promise.resolve(new Response(JSON.stringify(url === '/api/assistant' ? { configured: false } : url.startsWith('/api/plans') ? { plans: [] } : report))));
     vi.stubGlobal('fetch', fetcher); render(PerformanceDashboard);
     await fireEvent.click(screen.getByRole('button', { name: '実績を取得・更新' }));
     expect(await screen.findByText(/Campaignの取得は成功/)).toBeInTheDocument();
@@ -17,6 +17,7 @@ describe('PerformanceDashboard', () => {
     let calls = 0;
     const fetcher = vi.fn().mockImplementation((url) => Promise.resolve(url === '/api/assistant'
       ? new Response(JSON.stringify({ configured: false }))
+      : url.startsWith('/api/plans') ? new Response(JSON.stringify({ plans: [] }))
       : ++calls === 1 ? new Response(JSON.stringify(report))
       : new Response(JSON.stringify({ message: '接続をやり直してください。' }), { status: 502 })));
     vi.stubGlobal('fetch', fetcher); render(PerformanceDashboard);

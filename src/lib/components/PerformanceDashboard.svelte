@@ -1,5 +1,7 @@
 <script lang="ts">
   import CampaignAssistant from './CampaignAssistant.svelte';
+  import ExecutionPlanPanel from './ExecutionPlanPanel.svelte';
+  let suggestion = $state<{ campaignId: string; text: string; token: number }>();
   import type { Metrics, PerformanceReport } from '$lib/types/performance';
   let days = $state('30'), busy = $state(false), message = $state(''), selected = $state('');
   let report = $state<PerformanceReport | null>(null);
@@ -53,7 +55,8 @@
             <p class="metadata">Google Adsから返された日のみ表示します。全指標が0の日は省略されることがあります。</p>
           {/if}
           {#key `${report.account.customerId}:${campaign.id}:${report.fetchedAt}:${days}`}
-            <CampaignAssistant customerId={report.account.customerId} campaignId={campaign.id} days={Number(days)} start={report.start} end={report.end} />
+            <CampaignAssistant customerId={report.account.customerId} campaignId={campaign.id} days={Number(days)} start={report.start} end={report.end} onPlanReason={(text) => suggestion = { campaignId: campaign.id, text, token: Date.now() }} />
+            <ExecutionPlanPanel customerId={report.account.customerId} campaignId={campaign.id} suggestion={suggestion?.campaignId === campaign.id ? suggestion : undefined} />
           {/key}
         {:else}<p role="status">入稿記録はありますが、Google AdsからCampaignの状態を取得できませんでした。</p>{/if}
       {/if}

@@ -37,7 +37,7 @@ export function customerId(value: unknown): string {
 }
 
 type Customer = { id?: string; descriptiveName?: string; manager?: boolean; testAccount?: boolean; currencyCode?: string; timeZone?: string; status?: string };
-export type AdsReportRow = { campaign?: { id?: string; name?: string; status?: string }; segments?: { date?: string }; metrics?: { impressions?: string; clicks?: string; costMicros?: string; conversions?: number } };
+export type AdsReportRow = { campaign?: { id?: string; name?: string; status?: string; campaignBudget?: string; advertisingChannelType?: string }; campaignBudget?: { resourceName?: string; amountMicros?: string; explicitlyShared?: boolean; referenceCount?: string; period?: string }; segments?: { date?: string }; metrics?: { impressions?: string; clicks?: string; costMicros?: string; conversions?: number } };
 type Row = AdsReportRow & { customer?: Customer; customerClient?: Customer & { clientCustomer?: string } };
 type ApiResponse = { resourceNames?: string[]; results?: Row[]; nextPageToken?: string; mutateOperationResponses?: Record<string, { resourceName?: string }>[] };
 
