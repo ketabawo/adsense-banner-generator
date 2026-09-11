@@ -69,3 +69,9 @@ describe('Execution of approved plans', () => {
     expect(m.mutate).not.toHaveBeenCalled(); expect(m.transition).not.toHaveBeenCalled();
   });
 });
+
+it('does not send when a recovered preflight loses its final send claim', async () => {
+  m.transition.mockResolvedValueOnce({ ...row, state: 'executing' }).mockResolvedValueOnce(undefined);
+  await expect(executePlan('owner', input)).rejects.toMatchObject({ status: 409 });
+  expect(m.mutate).not.toHaveBeenCalled();
+});

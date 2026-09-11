@@ -1,10 +1,11 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-const mocks = vi.hoisted(() => ({ user: vi.fn(), origin: vi.fn(), create: vi.fn(), decide: vi.fn(), list: vi.fn(), settings: vi.fn() }));
+const mocks = vi.hoisted(() => ({ user: vi.fn(), origin: vi.fn(), create: vi.fn(), decide: vi.fn(), list: vi.fn(), settings: vi.fn(), recovery: vi.fn(), resolve: vi.fn() }));
 vi.mock('../auth/http', () => ({ privateHeaders: { 'cache-control': 'no-store' }, requireUser: mocks.user, requireSameOrigin: mocks.origin }));
 vi.mock('./service', () => ({ createPlan: mocks.create, decidePlan: mocks.decide, listPlans: mocks.list }));
 vi.mock('./settings', () => ({ currentSettings: mocks.settings, fingerprint: () => 'a'.repeat(64) }));
 vi.mock('../google-ads/api', () => ({ AdsError: class extends Error {}, adsErrorMessage: () => 'Ads error' }));
+vi.mock('./recovery', () => ({ recoverySettings: mocks.recovery, resolvePlan: mocks.resolve }));
 import { GET, POST, PATCH } from '../../../routes/api/plans/+server';
 const event = (method = 'POST', body = '{}') => ({ request: new Request('http://localhost/api/plans', { method, body: method === 'GET' ? undefined : body }), url: new URL('http://localhost/api/plans?customerId=2222222222&campaignId=42'), setHeaders: vi.fn(), cookies: {} }) as unknown as Parameters<typeof POST>[0];
 beforeEach(() => { vi.resetAllMocks(); mocks.user.mockResolvedValue({ subject: 'verified-owner' }); mocks.list.mockResolvedValue([]); });
@@ -33,4 +34,16 @@ describe('Execution Plan API authorization', () => {
     expect(result.status).toBe(502); expect(JSON.stringify(await result.json())).not.toContain('private');
     expect((await POST(event('POST', 'invalid'))).status).toBe(400);
   });
+  it('routes recovery reads and resolutions with the authenticated owner', async () => {
+    const e = event('GET'); e.url.searchParams.set('mode', 'recovery'); e.url.searchParams.set('id', 'plan-id');
+    mocks.recovery.mockResolvedValue({ fingerprint: 'reviewed' });
+    expect(await (await GET(e)).json()).toEqual({ fingerprint: 'reviewed' });
+    expect(mocks.recovery).toHaveBeenCalledWith('verified-owner', '2222222222', '42', 'plan-id');
+    mocks.resolve.mockResolvedValue({ state: 'resolved' });
+    const input = { action: 'resolve', confirmed: true };
+    expect(await (await PATCH(event('PATCH', JSON.stringify(input)))).json()).toEqual({ plan: { state: 'resolved' } });
+    expect(mocks.resolve).toHaveBeenCalledWith('verified-owner', input);
+    expect(mocks.origin).toHaveBeenCalled();
+  });
+
 });

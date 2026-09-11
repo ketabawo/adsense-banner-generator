@@ -33,12 +33,12 @@ export async function executePlan(subject: string, body: unknown): Promise<Execu
   const plan = asPlan(row), target = executionTarget(plan);
   if (plan.state === 'applied') return plan;
   if (input.action === 'reconcile') {
-    if (!['executing','unknown'].includes(plan.state)) throw new PlanError('再照合できる状態ではありません。', 409);
+    if (!['executing','sending','unknown'].includes(plan.state)) throw new PlanError('再照合できる状態ではありません。', 409);
     // Wait beyond the API timeout before recovering an interrupted process.
-    if (plan.state === 'executing' && (!plan.decidedAt || Date.now() - Date.parse(plan.decidedAt) < 60000)) throw new PlanError('反映処理中です。1分後に履歴を更新してください。', 409);
+    if (['executing', 'sending'].includes(plan.state) && (!plan.decidedAt || Date.now() - Date.parse(plan.decidedAt) < 60000)) throw new PlanError('反映処理中です。1分後に履歴を更新してください。', 409);
     const current = await currentSettings(subject, ids.customerId, ids.campaignId);
     const state = fingerprint(current) === fingerprint(target) ? 'applied' : 'unknown';
-    return asPlan(await transition(subject, id, state, ['executing','unknown']) ?? (await findPlan(subject, id))!);
+    return asPlan(await transition(subject, id, state, ['executing','sending','unknown']) ?? (await findPlan(subject, id))!);
   }
   if (plan.state !== 'approved') throw new PlanError('承認済み・未反映の変更案だけ反映できます。履歴を更新してください。', 409);
   const bodyToSend = { mutateOperations: operations(plan), partialFailure: false };
@@ -60,10 +60,12 @@ export async function executePlan(subject: string, body: unknown): Promise<Execu
     await transition(subject, id, 'approved', ['executing']);
     throw error;
   }
+  // A recovered preflight must never resume and send after its claim was closed.
+  if (!await transition(subject, id, 'sending', ['executing'])) throw new PlanError('別の操作で状態が変わりました。履歴を更新してください。', 409);
   try {
     await mutateTestResources(subject, ids.customerId, connection.loginCustomerId, bodyToSend);
     const current = await currentSettings(subject, ids.customerId, ids.campaignId);
-    if (fingerprint(current) === fingerprint(target)) return asPlan((await transition(subject, id, 'applied', ['executing','unknown']))!);
+    if (fingerprint(current) === fingerprint(target)) return asPlan((await transition(subject, id, 'applied', ['sending','unknown']))!);
   } catch { /* A write may have succeeded despite a transport or persistence failure. */ }
-  return asPlan(await transition(subject, id, 'unknown', ['executing']) ?? (await findPlan(subject, id))!);
+  return asPlan(await transition(subject, id, 'unknown', ['sending']) ?? (await findPlan(subject, id))!);
 }

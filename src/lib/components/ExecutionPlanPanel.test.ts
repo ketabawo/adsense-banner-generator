@@ -19,7 +19,7 @@ describe('ExecutionPlanPanel', () => {
       return Promise.resolve(response({ plans: [saved] }));
     });
     vi.stubGlobal('fetch', fetcher); render(ExecutionPlanPanel, props); await ready();
-    await fireEvent.click(screen.getByRole('button', { name: /承認済み/ }));
+    await fireEvent.click(screen.getByRole('button', { name: /承認済み・未反映/ }));
     const execute = screen.getByRole('button', { name: '承認済み変更案をGoogle Adsに反映' });
     expect(execute).toBeDisabled();
     await fireEvent.click(screen.getByLabelText('この変更内容をGoogle Adsのテストアカウントに反映することを確認しました'));
@@ -45,7 +45,7 @@ describe('ExecutionPlanPanel', () => {
     vi.stubGlobal('fetch', fetcher);
     const view = render(ExecutionPlanPanel, props);
     await ready();
-    await fireEvent.click(screen.getByRole('button', { name: /承認済み/ }));
+    await fireEvent.click(screen.getByRole('button', { name: /承認済み・未反映/ }));
     await fireEvent.click(screen.getByRole('button', { name: 'この変更案を取り消す' }));
     expect(await screen.findByText('変更案を取り消しました。')).toBeInTheDocument();
     const call = fetcher.mock.calls.find(call => call[1]?.method === 'PATCH')!;
@@ -94,4 +94,26 @@ describe('ExecutionPlanPanel', () => {
     expect(await screen.findByText(/Google Adsの現在値が変わったため承認できません/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'この変更案の承認を記録' })).not.toBeInTheDocument();
   });
+});
+
+it('shows reviewed recovery values and requires reason and acknowledgement before closing', async () => {
+  const current = { ...settings, budgetMicros: '1000000000' };
+  const fetcher = vi.fn().mockImplementation((url, init) => Promise.resolve(response(
+    init?.method === 'PATCH' ? { plan: { ...plan, state: 'resolved', recovery: { reason: '管理画面で確認', settings: current } } }
+    : url.includes('mode=recovery') ? { settings: current, fingerprint: 'c'.repeat(64) }
+    : url.includes('mode=actions') ? { actions: [] } : { plans: [{ ...plan, state: 'unknown' }] }
+  )));
+  vi.stubGlobal('fetch', fetcher); render(ExecutionPlanPanel, props); await ready();
+  await fireEvent.click(screen.getByText('再照合しても結果不明のとき'));
+  await fireEvent.click(screen.getByRole('button', { name: '復旧用の現在値を取得' })); await ready();
+  const close = screen.getByRole('button', { name: '確認を記録してこの案を終了' });
+  expect(close).toBeDisabled();
+  await fireEvent.input(screen.getByLabelText('終了理由'), { target: { value: '管理画面で確認' } });
+  expect(close).toBeDisabled();
+  await fireEvent.click(screen.getByLabelText(/Google Adsの現在値と変更履歴を確認しました/));
+  await fireEvent.click(close); await ready();
+  const patch = fetcher.mock.calls.find(c => c[1]?.method === 'PATCH')!;
+  expect(JSON.parse(patch[1].body)).toEqual({ ...props, id: plan.id, action: 'resolve', expected: 'c'.repeat(64), reason: '管理画面で確認', confirmed: true });
+  expect(screen.getByText('終了理由：管理画面で確認')).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: '承認済み変更案をGoogle Adsに反映' })).not.toBeInTheDocument();
 });

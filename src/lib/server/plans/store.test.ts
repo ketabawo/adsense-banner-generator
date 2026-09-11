@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { afterAll, describe, expect, it, vi } from 'vitest';
 vi.mock('$env/dynamic/private', () => ({ env: { DATABASE_URL: process.env.TEST_DATABASE_URL } }));
 import { database } from '../db';
-import { asPlan, findPlan, insertPlan, transition, listStoredPlans, listActions } from './store';
+import { asPlan, findPlan, insertPlan, transition, listStoredPlans, listActions, resolveStoredPlan } from './store';
 import { fingerprint } from './settings';
 import type { ExecutionPlan } from '$lib/types/plan';
 const subject = `plan-test-${randomUUID()}`;
@@ -50,4 +50,24 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('Execution Plan PostgreSQL persi
     expect(actions.map(a => a.state)).toEqual(['applied','unknown','executing','approved','draft']);
     expect(await listActions('different-owner', settings.customerId, '42')).toEqual([]);
   });
+  it('closes old uncertain plans with evidence atomically and releases the campaign lock', async () => {
+    const draft = { ...plan, id: randomUUID(), campaignId: '43' };
+    await insertPlan(subject, randomUUID(), 'recovery', draft);
+    await transition(subject, draft.id, 'approved', ['draft']);
+    await transition(subject, draft.id, 'executing', ['approved']);
+    await transition(subject, draft.id, 'sending', ['executing']);
+    const recovery = { reason: 'Reviewed external history', settings };
+    expect(await resolveStoredPlan(subject, draft.id, recovery)).toBeUndefined();
+    await database().query("UPDATE execution_plans SET decided_at = now() - interval '6 minutes' WHERE id = $1", [draft.id]);
+    expect(await resolveStoredPlan('other-owner', draft.id, recovery)).toBeUndefined();
+    expect(asPlan((await resolveStoredPlan(subject, draft.id, recovery))!).recovery).toEqual(recovery);
+    expect(await transition(subject, draft.id, 'sending', ['executing'])).toBeUndefined();
+    expect(await transition(subject, draft.id, 'applied', ['sending','unknown'])).toBeUndefined();
+    expect(await resolveStoredPlan(subject, draft.id, recovery)).toBeUndefined();
+    const next = { ...draft, id: randomUUID() };
+    await insertPlan(subject, randomUUID(), 'next', next);
+    expect(await transition(subject, next.id, 'executing', ['draft'])).toBeDefined();
+    expect((await listActions(subject, settings.customerId, '43')).filter(a => a.planId === draft.id).map(a => a.state)).toEqual(['resolved','sending','executing','approved','draft']);
+  });
+
 });
