@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { afterAll, describe, expect, it, vi } from 'vitest';
 vi.mock('$env/dynamic/private', () => ({ env: { DATABASE_URL: process.env.TEST_DATABASE_URL } }));
 import { database } from '../db';
-import { asPlan, findPlan, insertPlan, transition, listStoredPlans } from './store';
+import { asPlan, findPlan, insertPlan, transition, listStoredPlans, listActions } from './store';
 import { fingerprint } from './settings';
 import type { ExecutionPlan } from '$lib/types/plan';
 const subject = `plan-test-${randomUUID()}`;
@@ -25,5 +25,29 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('Execution Plan PostgreSQL persi
     expect(decisions.filter(Boolean)).toHaveLength(1);
     expect((await findPlan(subject, saved.id))?.decided_at).toBeInstanceOf(Date);
     expect(await transition('different-owner', saved.id, 'cancelled', ['approved'])).toBeUndefined();
+  });
+  it('atomically logs decisions, prevents competing executions and blocks cancellation after claim', async () => {
+    const first = { ...plan, id: randomUUID() }, second = { ...plan, id: randomUUID() };
+    await insertPlan(subject, randomUUID(), 'first', first);
+    await insertPlan(subject, randomUUID(), 'second', second);
+    await transition(subject, first.id, 'approved', ['draft']);
+    await transition(subject, second.id, 'approved', ['draft']);
+    const claims = await Promise.allSettled([
+      transition(subject, first.id, 'executing', ['approved']),
+      transition(subject, second.id, 'executing', ['approved'])
+    ]);
+    expect(claims.filter(r => r.status === 'fulfilled')).toHaveLength(1);
+    expect(claims.filter(r => r.status === 'rejected')).toHaveLength(1);
+    const winner = claims.find(r => r.status === 'fulfilled') as PromiseFulfilledResult<Awaited<ReturnType<typeof transition>>>;
+    const id = winner.value!.id;
+    expect(await transition(subject, id, 'cancelled', ['approved'])).toBeUndefined();
+    await transition(subject, id, 'unknown', ['executing']);
+    const loser = id === first.id ? second.id : first.id;
+    await expect(transition(subject, loser, 'executing', ['approved'])).rejects.toMatchObject({ code: '23505' });
+    await transition(subject, id, 'applied', ['unknown']);
+    await transition(subject, id, 'applied', ['unknown']);
+    const actions = (await listActions(subject, settings.customerId, '42')).filter(a => a.planId === id);
+    expect(actions.map(a => a.state)).toEqual(['applied','unknown','executing','approved','draft']);
+    expect(await listActions('different-owner', settings.customerId, '42')).toEqual([]);
   });
 });

@@ -1,12 +1,18 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import type { CampaignSettings, ExecutionPlan } from '$lib/types/plan';
+  import type { CampaignSettings, ExecutionPlan, PlanAction } from '$lib/types/plan';
   import { planStates, planValue } from '$lib/plans/format';
   let { customerId, campaignId, suggestion }: { customerId: string; campaignId: string; suggestion?: { text: string; token: number } } = $props();
   let settings = $state<CampaignSettings | null>(null), expected = $state('');
   let plans = $state<ExecutionPlan[]>([]), busy = $state(false), message = $state(''), listError = $state('');
   let changeName = $state(false), changeBudget = $state(false), name = $state(''), budget = $state<number | undefined>(), reason = $state('');
   let reviewing = $state<string | null>(null), confirmed = $state(false);
+  let actions = $state<PlanAction[]>([]), actionError = $state('');
+  async function loadActions() {
+    actionError = '';
+    try { const data = await api(`/api/plans?${query}&mode=actions`); if (alive) actions = data.actions ?? []; }
+    catch { if (alive) actionError = 'Action Logを取得できませんでした。履歴を更新してください。'; }
+  }
   let requestId = '', requestSnapshot = '', alive = true;
   $effect(() => { if (suggestion) reason = suggestion.text.slice(0, 2000); });
   const query = $derived(new URLSearchParams({ customerId, campaignId }).toString());
@@ -19,7 +25,7 @@
   }
   async function loadPlans() {
     listError = '';
-    try { const data = await api(`/api/plans?${query}`); if (alive) plans = data.plans; }
+    try { const data = await api(`/api/plans?${query}`); if (alive) plans = data.plans; await loadActions(); }
     catch (error) { if (alive) listError = error instanceof Error ? error.message : '履歴を取得できませんでした。'; }
   }
   onMount(() => { busy = true; void loadPlans().finally(() => { if (alive) busy = false; }); return () => { alive = false; }; });
@@ -45,27 +51,32 @@
       const data = await api('/api/plans', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...payload, requestId }) });
       if (!alive) return;
       plans = [data.plan, ...plans.filter(plan => plan.id !== data.plan.id)].slice(0, 50);
-      reviewing = data.plan.id; confirmed = false;
+      reviewing = data.plan.id; confirmed = false; requestSnapshot = ''; requestId = '';
+      await loadActions();
       message = '変更案を保存しました。下の変更前後を確認して承認できます。';
     } catch (error) { if (alive) message = error instanceof Error ? error.message : '保存結果を確認できませんでした。履歴を更新してください。'; }
     finally { if (alive) busy = false; }
   }
-  async function decide(plan: ExecutionPlan, action: 'approve' | 'cancel') {
-    if (busy || (action === 'approve' && !confirmed)) return;
+  async function decide(plan: ExecutionPlan, action: 'approve' | 'cancel' | 'execute' | 'reconcile') {
+    if (busy || (['approve', 'execute'].includes(action) && !confirmed)) return;
     busy = true; message = '';
     try {
       const data = await api('/api/plans', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: plan.id, customerId, campaignId, action }) });
       if (!alive) return;
       plans = plans.map(item => item.id === data.plan.id ? data.plan : item); confirmed = false;
-      message = data.plan.state === 'approved' ? '承認を記録しました。Google Adsへの反映はまだ行っていません。'
-        : data.plan.state === 'stale' ? 'Google Adsの現在値が変わったため承認できません。現在の設定を取得して、新しい変更案を作成してください。' : '変更案を取り消しました。';
+      await loadActions();
+      message = data.plan.state === 'applied' ? 'Google Adsの設定を再取得し、変更後の値との一致を確認しました。'
+        : data.plan.state === 'unknown' ? '反映結果を確認できません。自動再送せず、結果を再照合してください。'
+        : data.plan.state === 'executing' ? '反映処理中です。時間をおいて履歴を更新してください。'
+        : data.plan.state === 'approved' ? '承認を記録しました。Google Adsへの反映はまだ行っていません。'
+        : data.plan.state === 'stale' ? 'Google Adsの現在値が変わったため承認できません。反映も行いません。現在の設定を取得して、新しい変更案を作成してください。' : '変更案を取り消しました。';
     } catch (error) { if (alive) message = error instanceof Error ? error.message : '操作結果を確認できませんでした。履歴を更新してください。'; }
     finally { if (alive) busy = false; }
   }
 </script>
 <section class="plans" aria-label="Execution Plan">
   <h3>Execution Plan <span>変更案の確認・承認</span></h3>
-  <p>Campaign名・日予算の変更前後と理由を保存できます。現在は承認の記録まで対応しており、Google Adsへの反映機能は準備中です。</p>
+  <p>Campaign名・日予算の変更前後と理由を保存できます。承認後、別の確認操作でテストアカウントへ反映できます。</p>
   <p class="note">対象は停止中のDisplay Campaign・専用の日予算（JPY）です。テスト環境の実績から最適な予算は判断できません。</p>
   <button disabled={busy} onclick={loadSettings}>現在の設定を取得</button>
   {#if settings}
@@ -86,7 +97,7 @@
   <div class="heading"><h4>変更案の履歴</h4><button class="secondary" disabled={busy} onclick={async () => { busy = true; reviewing = null; confirmed = false; await loadPlans(); if (alive) busy = false; }}>履歴を更新</button></div>
   {#if listError}<p role="alert">{listError}</p>
   {:else if !plans.length}<p>保存された変更案はありません。</p>{/if}
-  <p class="metadata">このCampaignの最新50件を表示します。承認済みでも広告には未反映です。</p>
+  <p class="metadata">このCampaignの最新50件を表示します。承認だけでは未反映です。反映確認済みは実行後の取得時点の状態です。</p>
   {#each plans as plan}
     <button class="plan-row secondary" disabled={busy} onclick={() => { reviewing = plan.id; confirmed = false; }}><span>{planStates[plan.state]}</span><span>{new Date(plan.createdAt).toLocaleString('ja-JP')} · {plan.changes.map(change => change.field === 'name' ? 'Campaign名' : '日予算').join('・')}</span></button>
   {/each}
@@ -102,10 +113,24 @@
         <label class="choice"><input type="checkbox" bind:checked={confirmed} disabled={busy} /> この保存済み変更案の変更前後と理由を確認しました</label>
         <button disabled={busy || !confirmed} onclick={() => decide(review, 'approve')}>この変更案の承認を記録</button>
       {/if}
-      {#if review.state !== 'cancelled'}<button class="secondary" disabled={busy} onclick={() => decide(review, 'cancel')}>この変更案を取り消す</button>{/if}
-      <p class="metadata">内容を修正する場合は新しい変更案として保存してください。承認時に現在値を再確認します。反映機能を追加する際には実行前の再確認も必要です。</p>
+      {#if review.state === 'approved'}
+        <label class="choice"><input type="checkbox" bind:checked={confirmed} disabled={busy} /> この変更内容をGoogle Adsのテストアカウントに反映することを確認しました</label>
+        <button disabled={busy || !confirmed} onclick={() => decide(review, 'execute')}>承認済み変更案をGoogle Adsに反映</button>
+      {/if}
+      {#if review.state === 'unknown' || review.state === 'executing'}
+        <p>結果不明の場合は再送しません。反映処理中は1分待ってから再照合してください。値が一致しない場合は結果不明を維持します。</p>
+        <button disabled={busy} onclick={() => decide(review, 'reconcile')}>Google Adsの結果を再照合</button>
+      {/if}
+      {#if ['draft', 'approved', 'stale'].includes(review.state)}<button class="secondary" disabled={busy} onclick={() => decide(review, 'cancel')}>この変更案を取り消す</button>{/if}
+      <p class="metadata">内容を修正する場合は新しい変更案として保存してください。承認時と反映直前に現在値を再確認します。反映開始後は取り消せません。</p>
     </article>
   {/if}
+  <h4>Action Log</h4>
+  <p class="metadata">最新100件。以前の変更案は移行時点の状態のみ記録しています。</p>
+  {#if actionError}<p role="alert">{actionError}</p>{/if}
+  {#each actions as action}
+    <p class="metadata">{new Date(action.occurredAt).toLocaleString('ja-JP')} · {action.state.startsWith('snapshot:') ? '移行時の状態：' : ''}{planStates[action.state.replace('snapshot:', '') as ExecutionPlan['state']] ?? action.state} · 記録ID：{action.planId}</p>
+  {/each}
 </section>
 <style>
   .plans { border-top: 1px solid #dbe3ed; padding-top: 22px; margin-top: 24px; }

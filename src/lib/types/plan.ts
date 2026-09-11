@@ -13,10 +13,12 @@ export type ExecutionPlan = {
   id: string;
   customerId: string;
   campaignId: string;
-  state: 'draft' | 'approved' | 'cancelled' | 'stale';
+  state: 'draft' | 'approved' | 'cancelled' | 'stale' | 'executing' | 'unknown' | 'applied';
   before: CampaignSettings;
   changes: PlanChange[];
   reason: string;
   createdAt: string;
   decidedAt: string | null;
 };
+
+export type PlanAction = { id: string; planId: string; state: string; occurredAt: string };

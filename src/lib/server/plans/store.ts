@@ -33,3 +33,11 @@ export async function transition(subject: string, id: string, state: ExecutionPl
     WHERE google_subject = $1 AND id = $2 AND state = ANY($4::text[]) RETURNING *`, [subject, id, state, allowed]);
   return result.rows[0] as PlanRow | undefined;
 }
+
+export async function listActions(subject: string, customer: string, campaign: string) {
+  const result = await database().query(`SELECT a.* FROM plan_action_log a
+    JOIN execution_plans p ON p.id = a.plan_id
+    WHERE p.google_subject = $1 AND p.customer_id = $2 AND p.campaign_id = $3
+    ORDER BY a.id DESC LIMIT 100`, [subject, customer, campaign]);
+  return result.rows.map(row => ({ id: String(row.id), planId: row.plan_id, state: row.state, occurredAt: row.occurred_at.toISOString() }));
+}

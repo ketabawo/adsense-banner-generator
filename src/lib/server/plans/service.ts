@@ -35,8 +35,11 @@ export async function decidePlan(subject: string, body: unknown): Promise<Execut
   if (!existing || existing.customer_id !== ids.customerId || existing.campaign_id !== ids.campaignId) throw new PlanError('変更案が見つかりません。', 404);
   await ownedConnection(subject, ids.customerId, ids.campaignId);
   if (input.action === 'cancel') {
+    if (!['draft', 'approved', 'stale', 'cancelled'].includes(existing.state)) throw new PlanError('反映開始後は取り消せません。履歴を更新してください。', 409);
     const updated = await transition(subject, id, 'cancelled', ['draft', 'approved', 'stale']);
-    return asPlan(updated ?? (await findPlan(subject, id))!);
+    const latest = updated ?? await findPlan(subject, id);
+    if (!latest || latest.state !== 'cancelled') throw new PlanError('別の操作で状態が変わりました。履歴を更新してください。', 409);
+    return asPlan(latest);
   }
   if (existing.state === 'approved') return asPlan(existing);
   if (existing.state !== 'draft') throw new PlanError('この変更案は承認できません。新しい変更案を作成してください。', 409);
