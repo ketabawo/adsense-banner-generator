@@ -9,11 +9,16 @@ it('switches, adds and removes independent size variants', async () => {
   const first = createDefaultCreativeState();
   const square = { ...createDefaultCreativeState(), size: { id: '1200x1200', width: 1200, height: 1200, label: 'Square 1200 × 1200' } };
   const onSelect = vi.fn(), onAdd = vi.fn(), onRemove = vi.fn();
+  const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
   render(CreativeVariants, { variants: [{ id: 'base', state: first }, { id: 'square', state: square }], activeId: 'base', currentState: first, savedCreatives: [], onSelect, onAdd, onImport: vi.fn(), onRemove });
   await fireEvent.click(screen.getByRole('button', { name: /Square 1200 × 1200 · 背景画像なし/ }));
   expect(onSelect).toHaveBeenCalledWith('square');
   await fireEvent.click(screen.getByRole('button', { name: 'Square 1200 × 1200を削除' }));
+  expect(onRemove).not.toHaveBeenCalled();
+  confirm.mockReturnValue(true);
+  await fireEvent.click(screen.getByRole('button', { name: 'Square 1200 × 1200を削除' }));
   expect(onRemove).toHaveBeenCalledWith('square');
+  confirm.mockRestore();
   await fireEvent.change(screen.getByLabelText('別のサイズを作る'), { target: { value: '960x1200' } });
   await fireEvent.click(screen.getByRole('button', { name: 'サイズを追加' }));
   expect(onAdd).toHaveBeenCalledWith(expect.objectContaining({ width: 960, height: 1200 }));

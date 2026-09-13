@@ -18,8 +18,9 @@
   import { createDefaultCreativeState } from '$lib/banner/defaultState';
   import { isSupportedBannerSize, validateImageFile } from '$lib/banner/imageUpload';
   import { loadCampaigns, saveCampaigns } from '$lib/campaign/storage';
+  import { persistCampaignDraft } from '$lib/campaign/persist';
   import { settingsForObjective, validateCampaignDraft, withoutCampaign } from '$lib/campaign/rules';
-  import { creativeUsageCount, loadCreativeLibrary, migrateCampaignCreatives, removeLibraryCreative, sameCreativeContent, saveLibraryCreative, toLibraryCreative } from '$lib/creative/library';
+  import { creativeUsageCount, loadCreativeLibrary, migrateCampaignCreatives, removeLibraryCreative, sameCreativeContent, toLibraryCreative } from '$lib/creative/library';
   import { collectVariants, createVariant } from '$lib/creative/variants';
   import type { Campaign, CampaignDraft, GoogleAdsDraft } from '$lib/types/campaign';
   import type { CreativeMode, CreativeSize, CreativeSource, CreativeVariant, LibraryCreative, UploadedCreativeAsset } from '$lib/types/creative';
@@ -405,32 +406,26 @@
       createdAt: existing?.createdAt ?? now,
       updatedAt: now
     };
-    campaigns = existing
+    const nextCampaigns = existing
       ? [campaign, ...campaigns.filter((item) => item.id !== campaign.id)]
       : [campaign, ...campaigns];
+    const libraryCreativeToUpdate = libraryCreatives.find((item) => item.id === campaign.creative.id);
+    const libraryCreative = creativeMode !== 'library'
+      ? toLibraryCreative(campaign.creative, libraryCreativeToUpdate, now, studioVariants)
+      : undefined;
     try {
-      saveCampaigns(campaigns);
+      // Campaign localStorage contains only the selected image; the complete
+      // Variant set must be safely stored before this Campaign can point to it.
+      libraryCreatives = await persistCampaignDraft(nextCampaigns, libraryCreative);
     } catch {
-      campaigns = loadCampaigns();
-      saveMessage = '保存容量を超えました。画像を小さくしてお試しください。';
+      saveMessage = 'CreativeライブラリまたはCampaignを保存できませんでした。下書きは更新していません。保存容量を確認して再度お試しください。';
       return;
     }
-    let librarySaved = true;
-    try {
-      const libraryCreativeToUpdate = libraryCreatives.find((item) => item.id === campaign.creative.id);
-      if (creativeMode !== 'library') await saveLibraryCreative(toLibraryCreative(campaign.creative, libraryCreativeToUpdate, now, studioVariants));
-      libraryCreatives = await loadCreativeLibrary();
-    } catch {
-      librarySaved = false;
-      libraryError = 'Campaignは保存しましたが、Creativeライブラリを更新できませんでした。';
-      saveMessage = studioVariants && studioVariants.length > 1
-        ? 'Campaignの選択中画像は保存しましたが、他サイズのVariantを保存できませんでした。再度保存してください。'
-        : libraryError;
-    }
+    campaigns = nextCampaigns;
     editingId = campaign.id;
     showReview = false;
-    if (librarySaved) saveMessage = `「${campaign.name}」を下書き保存しました。`;
-    if (librarySaved) savedSnapshot = currentSnapshot();
+    saveMessage = `「${campaign.name}」を下書き保存しました。`;
+    savedSnapshot = currentSnapshot();
   }
 
   function createCampaign() {
@@ -497,7 +492,7 @@
       uploadedAsset = undefined;
       creative = structuredClone(selected.creative.source.state);
       activeVariantId = selected.creative.activeVariantId ?? 'base';
-      variants = structuredClone(libraryCreatives.find(item => item.id === selected.creative.id)?.variants ?? [{ id: activeVariantId, state: creative }]);
+      variants = structuredClone($state.snapshot(libraryCreatives.find(item => item.id === selected.creative.id)?.variants ?? [{ id: activeVariantId, state: creative }]));
       loadBackgroundImage(creative.background.image);
     } else {
       variants = [];

@@ -50,7 +50,7 @@
           <span class="details"><strong>{size.label || `${size.width} × ${size.height}`}</strong><small>{hasImage ? '背景画像あり' : '背景画像なし'}</small>{#if variant.name}<small>{variant.name}</small>{/if}</span>
           {#if variant.id === activeId}<span class="editing">編集中</span>{/if}
         </button>
-        {#if visible.length > 1}<button class="remove" aria-label={`${size.label}を削除`} onclick={() => onRemove(variant.id)}>削除</button>{/if}
+        {#if visible.length > 1}<button class="remove" aria-label={`${size.label}を削除`} onclick={() => { if (window.confirm(`「${size.label}」をサイズ別の画像から削除しますか？`)) onRemove(variant.id); }}>削除</button>{/if}
       </div>
     {/each}
   </div>
@@ -67,16 +67,16 @@
   .intro strong, .restore strong { font-size: 14px; color: #172033; }
   p { margin: 6px 0 12px; color: #64748b; font-size: 12px; line-height: 1.6; }
   .list { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
-  .variant { border: 1px solid #cbd5e1; border-radius: 5px; overflow: hidden; background: #f8fafc; }
+  .variant { display: flex; flex-direction: column; border: 1px solid #cbd5e1; border-radius: 5px; overflow: hidden; background: #f8fafc; }
   .variant.active { border-color: #2563eb; box-shadow: 0 0 0 1px #2563eb; }
   button, select { border-radius: 5px; color: #334155; font: inherit; font-size: 12px; cursor: pointer; }
-  .select { width: 100%; min-height: 142px; padding: 10px; border: 0; background: transparent; text-align: left; }
+  .select { flex: 1; width: 100%; min-height: 142px; padding: 10px; border: 0; background: transparent; text-align: left; }
   .thumbnail { display: flex; height: 76px; align-items: center; justify-content: center; overflow: hidden; }
   .thumbnail :global(canvas) { max-height: 76px; box-shadow: none; }
   .details { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; }
   .details small { color: #64748b; }
   .editing { display: inline-block; margin-top: 6px; color: #1d4ed8; font-weight: 700; }
-  .remove { width: 100%; padding: 6px; border: 0; border-top: 1px solid #cbd5e1; background: transparent; color: #64748b; }
+  .remove { align-self: flex-end; width: auto; margin: 0 10px 10px; padding: 5px 9px; border: 1px solid #cbd5e1; background: white; color: #64748b; }
   .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 14px; }
   .actions label { font-size: 12px; font-weight: 650; }
   .actions select { max-width: 100%; padding: 9px 11px; border: 1px solid #cbd5e1; background: white; }
