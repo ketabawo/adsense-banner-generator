@@ -709,3 +709,13 @@ studio制作の「背景 → 画像」に説明文入力と生成ボタンを追
 検証：型チェック0エラー・0警告、通常テスト195件成功・DB統合8件スキップ、Nodeビルド成功。新しいサイズのOpenAI実生成、画面でのVariant切替・再読み込み、Execution Planの手順案内はブラウザ未接続のため未確認です。次の実画面確認では、サイズを追加して画像を生成し、別サイズへ切り替えてコピーを変更した後、Campaignを保存・再読み込みして両サイズの内容が残ることを確認します。制作専用サイズのReviewでは入稿操作が出ないことも確認します。
 
 手動確認でLandscapeの追加は成功しましたが、元サイズのVariantが一覧にないとの報告を受けました。原因は、エディタ内の旧「バナーサイズ」選択がVariant追加を経由せず、現在の編集状態のサイズだけを書き換えていたことです。サイズ選択をVariantの切替・追加へ統一し、元画像を保持する回帰テストを追加しました。ユーザー確認で最初の画像がCreativeライブラリに残っていることが分かったため、保存済みのstudio Creativeを現在のVariant一覧に取り込む操作を追加しました。取り込んだだけでは元記録を変更しません。現在のLandscapeと取り込んだ元画像を1つのCreativeとして残すにはCampaign下書きを保存します。再読み込み・削除の前に両Variantの内容を確認します。
+
+### 複数Variantの固定サイズ画像広告入稿
+
+Reviewで入稿可能な固定サイズVariantを個別に選び、同一のDisplay Campaign・Ad Group内へVariantごとのPAUSED Image Adとして一括作成します。制作・保存用のLandscape／Square／Portrait／Verticalは現行Image Adの対象外で、下書き保存のみ可能です。固定サイズVariantはサイズ追加欄から作成できます。完成画像アップロードの単一画像入稿も維持します。
+
+入稿APIは複数画像`images[]`を受け取り、従来の単一`image`入力も受け付けます。Google Adsへの`validateOnly`後、`partialFailure: false`の一括mutateで作成するため、一件の検証失敗で全件未作成となります。送信後の結果不明時は再送を抑止します。Variant IDとAd Group Adのresource nameは既存`google_ads_submissions.resources` JSONBへ保存し、レスポンスでもVariant別に返します。DBマイグレーションは不要です。これは複数の固定画像広告であり、Responsive Display AdやP-MAXの一広告内アセット群ではありません。
+
+型チェック0エラー・0警告、通常テスト203件成功・DB統合8件スキップ、Nodeビルド成功。
+
+2026-09-13の手動確認で、テストアカウント`1828902919`に300×250と336×280の2件を一括入稿しました。送信記録`86a16e50-4aed-45d8-bbec-be73611d3d57`の2件とも成功し、異なるAd Group Ad resource nameを確認しました。Google Ads管理画面でも同一Campaign`24252227002`・同一Ad Group`198842231254`内に両画像広告が表示され、2件とも「一時停止中」であることを確認しました。

@@ -20,7 +20,7 @@ export const POST: RequestHandler = async (event) => {
       const { done, value } = await reader.read();
       if (done) break;
       length += value.byteLength;
-      if (length > 230000) { await reader.cancel(); throw 0; }
+      if (length > 1_700_000) { await reader.cancel(); throw 0; }
       chunks.push(value);
     }
     body = JSON.parse(Buffer.concat(chunks).toString('utf8'));

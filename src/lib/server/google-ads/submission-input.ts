@@ -33,15 +33,22 @@ export function parseSubmission(value: unknown) {
   if (body.noEuPoliticalAds !== true) fail('EU政治広告を含まないことを確認してください。');
   const startDate = date(draft.startDate), endDate = draft.endDate ? date(draft.endDate) : '';
   if (endDate && endDate < startDate) fail('終了日は開始日以降にしてください。');
-  const image = text(body.image, '画像', 205000);
-  if (!/^data:image\/png;base64,[A-Za-z0-9+/]+={0,2}$/.test(image)) fail('入稿画像はPNGで送信してください。');
-  const data = Buffer.from(image.split(',')[1], 'base64');
-  if (data.length > 150 * 1024) fail('入稿画像は150KB以下にしてください。背景画像を軽くして再度お試しください。');
-  if (data.length < 33 || data.subarray(0, 8).toString('hex') !== '89504e470d0a1a0a' || data.toString('ascii', 12, 16) !== 'IHDR') fail('PNG画像が正しくありません。');
-  const width = data.readUInt32BE(16), height = data.readUInt32BE(20);
-  if (!BANNER_SIZES.some(s => s.width === width && s.height === height)) fail('入稿画像をエディタの対応広告サイズにしてください。');
+  const raw = Array.isArray(body.images) ? body.images : [{ id: 'active', image: body.image }];
+  if (!raw.length || raw.length > 8) fail('入稿画像は1〜8件選択してください。');
+  const images = raw.map((item, index) => {
+    const entry = object(item), id = text(entry.id, 'Variant', 80), encoded = text(entry.image, '画像', 205000);
+    if (!/^[A-Za-z0-9_-]+$/.test(id)) fail('Variant IDが正しくありません。');
+    if (raw.findIndex(other => object(other).id === id) !== index) fail('同じVariantを重複して入稿できません。');
+    if (!/^data:image\/png;base64,[A-Za-z0-9+/]+={0,2}$/.test(encoded)) fail('入稿画像はPNGで送信してください。');
+    const data = Buffer.from(encoded.split(',')[1], 'base64');
+    if (data.length > 150 * 1024) fail('入稿画像は150KB以下にしてください。背景画像を軽くして再度お試しください。');
+    if (data.length < 33 || data.subarray(0, 8).toString('hex') !== '89504e470d0a1a0a' || data.toString('ascii', 12, 16) !== 'IHDR') fail('PNG画像が正しくありません。');
+    const width = data.readUInt32BE(16), height = data.readUInt32BE(20);
+    if (!BANNER_SIZES.some(s => s.width === width && s.height === height)) fail('入稿画像をエディタの対応広告サイズにしてください。');
+    return { id, image: data.toString('base64') };
+  });
   return { name, adName, landingPageUrl, dailyBudget: money(draft.dailyBudget), targetKpi: { type: kpi.type as string, value: money(kpi.value) }, objective: draft.objective as string,
-    startDate, endDate, bidding: ads.bidding as string, image: data.toString('base64'), targeting };
+    startDate, endDate, bidding: ads.bidding as string, images, targeting };
 }
 export type SubmissionInput = ReturnType<typeof parseSubmission>;
 
@@ -58,6 +65,6 @@ export function buildOperations(input: SubmissionInput, customer: string, marker
     { campaignCriterionOperation: { create: { campaign, language: { languageConstant: 'languageConstants/1005' } } } },
     { adGroupOperation: { create: { resourceName: group, name: `${input.adName} ${marker}`, campaign, status: 'PAUSED', type: 'DISPLAY_STANDARD', optimizedTargetingEnabled: false } } },
     ...input.targeting.keywords.terms.map(text => ({ adGroupCriterionOperation: { create: { adGroup: group, status: 'ENABLED', negative: false, keyword: { text, matchType: 'BROAD' } } } })),
-    { adGroupAdOperation: { create: { adGroup: group, status: 'PAUSED', ad: { name: input.adName, finalUrls: [input.landingPageUrl], displayUrl: new URL(input.landingPageUrl).hostname, imageAd: { data: input.image } } } } }
+    ...input.images.map(image => ({ adGroupAdOperation: { create: { adGroup: group, status: 'PAUSED', ad: { name: input.images.length === 1 ? input.adName : `${input.adName} · ${image.id}`, finalUrls: [input.landingPageUrl], displayUrl: new URL(input.landingPageUrl).hostname, imageAd: { data: image.image } } } } }))
   ];
 }

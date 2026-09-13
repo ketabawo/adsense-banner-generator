@@ -21,9 +21,45 @@
   } = $props();
   const yen = new Intl.NumberFormat('ja-JP');
   let canvas = $state<HTMLCanvasElement>();
+  let selectedIds = $state<string[]>([]);
+  let selectionInitialized = $state(false);
   const reviewVariants = $derived(creativeSource.type === 'studio'
     ? (variants.length ? variants : [{ id: activeVariantId ?? 'base', state: creativeSource.state }])
     : []);
+  const eligibleVariants = $derived(reviewVariants.filter(variant => isSupportedBannerSize(variant.state.size.width, variant.state.size.height)));
+  const selectedVariants = $derived(eligibleVariants.filter(variant => selectedIds.includes(variant.id)));
+
+  $effect(() => {
+    const ids = eligibleVariants.map(variant => variant.id);
+    if (!selectionInitialized) { selectedIds = ids; selectionInitialized = true; }
+    else if (selectedIds.some(id => !ids.includes(id))) selectedIds = selectedIds.filter(id => ids.includes(id));
+  });
+
+  function toggleVariant(id: string, checked: boolean) {
+    selectedIds = checked ? [...selectedIds, id] : selectedIds.filter(item => item !== id);
+  }
+
+  async function renderVariantImage(variant: CreativeVariant): Promise<string> {
+    const output = document.createElement('canvas');
+    output.width = variant.state.size.width;
+    output.height = variant.state.size.height;
+    const context = output.getContext('2d');
+    if (!context) throw new Error('Canvas unavailable');
+    const url = variant.state.background.type === 'image' ? variant.state.background.image : undefined;
+    if (url) {
+      const image = new Image();
+      image.src = url;
+      await image.decode();
+      drawBanner(context, variant.state, image);
+    } else drawBanner(context, variant.state);
+    return output.toDataURL('image/png');
+  }
+
+  async function makeImages() {
+    if (creativeSource.type !== 'studio') return [{ id: 'active', image: await makeImage() }];
+    if (!selectedVariants.length) throw new Error('入稿する画像を選択してください。');
+    return Promise.all(selectedVariants.map(async variant => ({ id: variant.id, image: await renderVariantImage(variant) })));
+  }
 
   $effect(() => {
     JSON.stringify(creativeSource);
@@ -65,9 +101,9 @@
     <div class="creative-heading"><strong>{creativeName}</strong><span>{creativeSource.type === 'studio' ? creativeSource.state.size.width : creativeSource.asset.width} × {creativeSource.type === 'studio' ? creativeSource.state.size.height : creativeSource.asset.height}px</span></div>
     <div class="creative-stage">
       {#if creativeSource.type === 'studio'}
-        <canvas bind:this={canvas} aria-label="入稿するCreativeのプレビュー"></canvas>
+        <canvas bind:this={canvas} aria-label="編集中のCreativeのプレビュー"></canvas>
       {:else}
-        <img src={creativeSource.asset.url} alt="入稿するCreativeのプレビュー" />
+        <img src={creativeSource.asset.url} alt="編集中のCreativeのプレビュー" />
       {/if}
     </div>
     <div class="creative-copy">
@@ -84,13 +120,14 @@
   {#if reviewVariants.length > 1}
     <section class="variant-review" aria-label="作成したサイズ別バナー">
       <div><strong>作成したサイズ別バナー</strong><span>{reviewVariants.length}件</span></div>
-      <p>青いカードが現在の入稿対象です。ほかのサイズも下書きとして保存されます。</p>
+      <p>対応サイズの画像は入稿対象を選べます。選択した画像ごとに、同じ広告グループ内へ停止状態の画像広告を作成します。</p>
       <div class="variant-grid">
         {#each reviewVariants as variant}
           {@const active = variant.id === activeVariantId}
+          {@const eligible = isSupportedBannerSize(variant.state.size.width, variant.state.size.height)}
           <article class:active>
             <CreativeThumbnail source={{ type: 'studio', state: variant.state }} />
-            <div><strong>{variant.state.size.label || `${variant.state.size.width} × ${variant.state.size.height}`}</strong><small>{active ? '現在の入稿対象' : '下書きに保存'}</small></div>
+            <div><strong>{variant.state.size.label || `${variant.state.size.width} × ${variant.state.size.height}`}</strong><small>{active ? '編集中のサイズ' : ''}</small>{#if eligible}<label><input type="checkbox" checked={selectedIds.includes(variant.id)} onchange={(event) => toggleVariant(variant.id, event.currentTarget.checked)} /> Google Adsへ入稿</label>{:else}<small>この広告形式では入稿対象外・下書きのみ</small>{/if}</div>
           </article>
         {/each}
       </div>
@@ -113,10 +150,10 @@
   </div>
   <div class="notice">安全のため、実際のAPI入稿時も一時停止状態で作成します。</div>
   <div class="actions"><button class="cancel" onclick={onCancel}>戻って修正</button><button class="confirm" onclick={onConfirm}>下書きを保存</button></div>
-  {#if isSupportedBannerSize(creativeSource.type === 'studio' ? creativeSource.state.size.width : creativeSource.asset.width, creativeSource.type === 'studio' ? creativeSource.state.size.height : creativeSource.asset.height)}
-    {#key JSON.stringify(creativeSource)}<AdsSubmission {draft} {ads} {makeImage} />{/key}
+  {#if creativeSource.type === 'studio' ? eligibleVariants.length > 0 : isSupportedBannerSize(creativeSource.asset.width, creativeSource.asset.height)}
+    <AdsSubmission {draft} {ads} {makeImages} selectedCount={creativeSource.type === 'studio' ? selectedVariants.length : 1} selectionKey={JSON.stringify(selectedIds)} />
   {:else}
-    <p class="variant-notice">このサイズは現在の固定サイズ画像広告への入稿対象外です。下書き保存やPNG出力はできます。入稿する場合は、エディタで対応サイズのVariantを選択してください。</p>
+    <p class="variant-notice">この画像は現在の固定サイズ画像広告への入稿対象外です。下書き保存はできます。</p>
   {/if}
 </section>
 
@@ -149,6 +186,7 @@
   .variant-grid article > div { display: grid; gap: 3px; padding: 8px; border-top: 1px solid #e2e8f0; }
   .variant-grid article strong { font-size: 10px; }
   .variant-grid article small { color: #64748b; font-size: 9px; }
+  .variant-grid article label { display: flex; align-items: center; gap: 5px; font-size: 10px; }
   .review-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; align-items: start; }
   dl { margin: 0; overflow: hidden; border: 1px solid #e2e8f0; border-radius: 5px; }
   dl div { display: grid; grid-template-columns: 120px 1fr; border-bottom: 1px solid #e2e8f0; }

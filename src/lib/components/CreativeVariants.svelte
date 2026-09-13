@@ -1,5 +1,6 @@
 <script lang="ts">
   import { VARIANT_SIZES } from '$lib/banner/variantSizes';
+  import { BANNER_SIZES } from '$lib/banner/sizes';
   import CreativeThumbnail from './CreativeThumbnail.svelte';
   import type { CreativeSize, CreativeState, CreativeVariant, LibraryCreative } from '$lib/types/creative';
 
@@ -14,6 +15,7 @@
     onRemove: (id: string) => void;
   } = $props();
   let selectedSize = $state(VARIANT_SIZES[0].id);
+  const availableSizes = [...BANNER_SIZES, ...VARIANT_SIZES];
   let savedSelection = $state('');
   let restoreStatus = $state('');
   const visible = $derived((variants.length ? variants : [{ id: activeId, state: currentState }]).map(variant =>
@@ -52,12 +54,12 @@
       </div>
     {/each}
   </div>
-  <div class="actions"><label for="variant-size">別のサイズを作る</label><select id="variant-size" bind:value={selectedSize}>{#each VARIANT_SIZES as size}<option value={size.id}>{size.label}</option>{/each}</select><button class="primary" onclick={() => { const size = VARIANT_SIZES.find(item => item.id === selectedSize); if (size) onAdd(size); }}>サイズを追加</button></div>
+  <div class="actions"><label for="variant-size">別のサイズを作る</label><select id="variant-size" bind:value={selectedSize}><optgroup label="固定サイズ画像広告に入稿可能">{#each BANNER_SIZES as size}<option value={size.id}>{size.label}</option>{/each}</optgroup><optgroup label="制作・保存用">{#each VARIANT_SIZES as size}<option value={size.id}>{size.label}</option>{/each}</optgroup></select><button class="primary" onclick={() => { const size = availableSizes.find(item => item.id === selectedSize); if (size) onAdd(size); }}>サイズを追加</button></div>
   <p class="hint">追加したサイズは背景画像なしで始まります。元の画像は上のカードに残ります。</p>
   {#if savedOptions.length}
     <div class="restore"><strong>以前の画像をサイズ別編集に戻す</strong><p>元の画像をここへ追加して、サイズごとに編集したい場合はこちらを使います。選ぶと一覧に追加して編集を開始します。</p><div class="actions"><label for="saved-variant">保存済みCreative</label><select id="saved-variant" value={savedSelection} onchange={(event) => importSavedVariant(event.currentTarget.value)}><option value="">Creativeを選択</option>{#each savedOptions as option}<option value={option.key}>{option.label}</option>{/each}</select></div>{#if restoreStatus}<p class="restore-status" role="status">{restoreStatus}</p>{/if}</div>
   {/if}
-  <p class="note">この4サイズは制作・保存用です。固定サイズ画像広告への入稿対応は、入稿画面で確認します。</p>
+  <p class="note">固定サイズ画像広告に入稿できるサイズと、制作・保存用のサイズがあります。Reviewで入稿対象を選べます。</p>
 </section>
 
 <style>

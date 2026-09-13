@@ -15,10 +15,16 @@ export async function submitCampaign(subject: string, body: unknown) {
   // Preserve fingerprints for pre-targeting nationwide submissions. Normalize sets for replay safety.
   const { targeting, ...baseInput } = input;
   const legacyDefault = targeting.locations.scope === 'country' && !targeting.keywords.terms.length;
-  const fingerprint = createHash('sha256').update(JSON.stringify(legacyDefault ? baseInput : { ...baseInput, targeting: { ...targeting, keywords: { ...targeting.keywords, terms: [...targeting.keywords.terms].map(t => t.toLowerCase()).sort() } } })).digest('hex');
+  const { images, ...fingerprintBase } = baseInput;
+  const legacyImageInput = images.length === 1 && images[0].id === 'active' ? { ...fingerprintBase, image: images[0].image } : baseInput;
+  const fingerprint = createHash('sha256').update(JSON.stringify(legacyDefault ? legacyImageInput : { ...legacyImageInput, targeting: { ...targeting, keywords: { ...targeting.keywords, terms: [...targeting.keywords.terms].map(t => t.toLowerCase()).sort() } } })).digest('hex');
   const params = [subject, account.customerId, fingerprint];
+  const variantResults = (state: string, resources: Record<string, string> = {}) => Object.fromEntries(input.images.map(image => {
+    const resource = resources[`variant:${image.id}`] ?? (input.images.length === 1 ? Object.entries(resources).find(([key]) => key.startsWith('adGroupAdResult-'))?.[1] : undefined);
+    return [image.id, { state: resource ? 'succeeded' : state === 'succeeded' ? 'unknown' : state, ...(resource ? { resourceName: resource } : {}) }];
+  }));
   const previous = await db.query('SELECT id, state, resources FROM google_ads_submissions WHERE google_subject = $1 AND customer_id = $2 AND fingerprint = $3', params);
-  if (previous.rows[0]) return previous.rows[0];
+  if (previous.rows[0]) return { ...previous.rows[0], variantResults: variantResults(previous.rows[0].state, previous.rows[0].resources) };
   const today = new Intl.DateTimeFormat('sv-SE', { timeZone: account.timeZone }).format(new Date());
   if (input.startDate < today) throw new SubmissionInputError('開始日は広告アカウントの今日以降にしてください。');
   const id = randomUUID();
@@ -32,7 +38,8 @@ export async function submitCampaign(subject: string, body: unknown) {
   const inserted = await db.query(`INSERT INTO google_ads_submissions (id, google_subject, customer_id, fingerprint, state)
     VALUES ($4, $1, $2, $3, 'sending') ON CONFLICT DO NOTHING RETURNING id`, [...params, id]);
   if (!inserted.rowCount) {
-    return (await db.query('SELECT id, state, resources FROM google_ads_submissions WHERE google_subject = $1 AND customer_id = $2 AND fingerprint = $3', params)).rows[0];
+    const existing = (await db.query('SELECT id, state, resources FROM google_ads_submissions WHERE google_subject = $1 AND customer_id = $2 AND fingerprint = $3', params)).rows[0];
+    return { ...existing, variantResults: variantResults(existing.state, existing.resources) };
   }
   // Reserve durably BEFORE the network call. A crash or timeout must never trigger a replay.
   try {
@@ -48,11 +55,14 @@ export async function submitCampaign(subject: string, body: unknown) {
       if (typeof resource !== 'string' || !resource.startsWith(`customers/${account.customerId}/`) || !/^customers\/\d{10}\/[A-Za-z]+\/[0-9~]+$/.test(resource)) throw new Error('Invalid resource');
       resources[`${key}-${index}`] = resource;
     });
+    const adResources = expected.map((key, index) => key === 'adGroupAdResult' ? resources[`${key}-${index}`] : undefined).filter((name): name is string => !!name);
+    if (adResources.length !== input.images.length) throw new Error('Missing ad results');
+    input.images.forEach((image, index) => { resources[`variant:${image.id}`] = adResources[index]; });
     await db.query("UPDATE google_ads_submissions SET state = 'succeeded', resources = $2::jsonb, updated_at = now() WHERE id = $1", [id, JSON.stringify(resources)]);
-    return { id, state: 'succeeded', resources };
+    return { id, state: 'succeeded', resources, variantResults: variantResults('succeeded', resources) };
   } catch {
     // Provider messages can contain private data. Ambiguous writes are kept for manual reconciliation.
     await db.query("UPDATE google_ads_submissions SET state = 'unknown', updated_at = now() WHERE id = $1", [id]);
-    return { id, state: 'unknown', resources: {} };
+    return { id, state: 'unknown', resources: {}, variantResults: variantResults('unknown') };
   }
 }

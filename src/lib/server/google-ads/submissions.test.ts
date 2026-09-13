@@ -25,6 +25,39 @@ it('creates an atomic paused display campaign with dates and Japan/Japanese crit
   expect(ops[2]).toMatchObject({ campaignCriterionOperation: { create: { location: { geoTargetConstant: 'geoTargetConstants/2392' } } } });
   expect(ops[3]).toMatchObject({ campaignCriterionOperation: { create: { language: { languageConstant: 'languageConstants/1005' } } } });
 });
+it('creates one paused image ad per selected variant in the same ad group', () => {
+  const source = body();
+  const ops = buildOperations(parseSubmission({ ...source, images: [{ id: 'rect', image: source.image }, { id: 'wide', image: source.image }] }), '2222222222', 'marker');
+  const ads = ops.filter(operation => 'adGroupAdOperation' in operation);
+  expect(ads).toHaveLength(2);
+  for (const ad of ads) expect(ad).toMatchObject({ adGroupAdOperation: { create: { adGroup: 'customers/2222222222/adGroups/-3', status: 'PAUSED' } } });
+  expect(ads[0]).toMatchObject({ adGroupAdOperation: { create: { ad: { name: 'Banner · rect' } } } });
+  expect(ads[1]).toMatchObject({ adGroupAdOperation: { create: { ad: { name: 'Banner · wide' } } } });
+});
+it('returns a resource name for every selected variant', async () => {
+  const source = body();
+  const input = { ...source, images: [{ id: 'rect', image: source.image }, { id: 'wide', image: source.image }] };
+  const ops = buildOperations(parseSubmission(input), '2222222222', 'marker');
+  mocks.mutate.mockResolvedValueOnce({}).mockResolvedValueOnce({ mutateOperationResponses: ops.map((operation, index) => ({ [Object.keys(operation)[0].replace(/Operation$/, 'Result')]: { resourceName: `customers/2222222222/adGroupAds/${index + 1}` } })) });
+  const result = await submitCampaign('owner', input);
+  expect(result.state).toBe('succeeded');
+  expect(result.variantResults).toEqual({ rect: { state: 'succeeded', resourceName: result.resources['variant:rect'] }, wide: { state: 'succeeded', resourceName: result.resources['variant:wide'] } });
+  expect(result.resources['variant:rect']).not.toBe(result.resources['variant:wide']);
+  expect(mocks.mutate.mock.calls[1][3]).toMatchObject({ partialFailure: false, validateOnly: false });
+});
+it('restores variant results from a recorded submission without sending again', async () => {
+  const source = body();
+  const input = { ...source, images: [{ id: 'rect', image: source.image }, { id: 'wide', image: source.image }] };
+  mocks.query.mockResolvedValueOnce({ rows: [{ id: 'old', state: 'succeeded', resources: { 'variant:rect': 'customers/2222222222/adGroupAds/11', 'variant:wide': 'customers/2222222222/adGroupAds/12' } }] });
+  const result = await submitCampaign('owner', input);
+  expect(result.variantResults).toEqual({ rect: { state: 'succeeded', resourceName: 'customers/2222222222/adGroupAds/11' }, wide: { state: 'succeeded', resourceName: 'customers/2222222222/adGroupAds/12' } });
+  expect(mocks.mutate).not.toHaveBeenCalled();
+});
+it('rejects a duplicate variant before writing to Google', async () => {
+  const source = body();
+  await expect(submitCampaign('owner', { ...source, images: [{ id: 'rect', image: source.image }, { id: 'rect', image: source.image }] })).rejects.toThrow('重複');
+  expect(mocks.mutate).not.toHaveBeenCalled();
+});
 it.each([NaN, Infinity, -1, 0])('rejects invalid budgets %s', (value) => {
   const input = body(); input.draft.dailyBudget = value; expect(() => parseSubmission(input)).toThrow();
 });
@@ -65,7 +98,8 @@ it('saves returned resource IDs after exactly one non-partial mutate', async () 
   const keys = ['campaignBudget', 'campaign', 'campaignCriterion', 'campaignCriterion', 'adGroup', 'adGroupAd'];
   mocks.mutate.mockResolvedValue({ mutateOperationResponses: keys.map((key, i) => ({ [`${key}Result`]: { resourceName: `customers/2222222222/${key}s/${i + 1}` } })) });
   const result = await submitCampaign('owner', body());
-  expect(result.state).toBe('succeeded'); expect(Object.keys(result.resources)).toHaveLength(6);
+  expect(result.state).toBe('succeeded'); expect(Object.keys(result.resources)).toHaveLength(7);
+  expect(result.variantResults.active).toMatchObject({ state: 'succeeded', resourceName: result.resources['variant:active'] });
   expect(mocks.mutate).toHaveBeenCalledTimes(2);
   expect(mocks.mutate.mock.calls[1][3]).toMatchObject({ partialFailure: false, validateOnly: false });
   expect(mocks.query.mock.calls[2][0]).toContain("state = 'succeeded'");
@@ -100,5 +134,5 @@ it('saves the variable number of targeting results', async () => {
   const operations = buildOperations(parseSubmission(input), '2222222222', 'test');
   mocks.mutate.mockResolvedValueOnce({}).mockResolvedValueOnce({ mutateOperationResponses: operations.map((o, i) => ({ [Object.keys(o)[0].replace(/Operation$/, 'Result')]: { resourceName: `customers/2222222222/campaignCriteria/${i + 1}` } })) });
   const result = await submitCampaign('owner', input);
-  expect(result.state).toBe('succeeded'); expect(Object.keys(result.resources)).toHaveLength(8);
+  expect(result.state).toBe('succeeded'); expect(Object.keys(result.resources)).toHaveLength(9);
 });

@@ -17,6 +17,9 @@ it('switches, adds and removes independent size variants', async () => {
   await fireEvent.change(screen.getByLabelText('別のサイズを作る'), { target: { value: '960x1200' } });
   await fireEvent.click(screen.getByRole('button', { name: 'サイズを追加' }));
   expect(onAdd).toHaveBeenCalledWith(expect.objectContaining({ width: 960, height: 1200 }));
+  await fireEvent.change(screen.getByLabelText('別のサイズを作る'), { target: { value: '336x280' } });
+  await fireEvent.click(screen.getByRole('button', { name: 'サイズを追加' }));
+  expect(onAdd).toHaveBeenCalledWith(expect.objectContaining({ width: 336, height: 280 }));
 });
 
 it('imports a saved studio image without changing its source record', async () => {
