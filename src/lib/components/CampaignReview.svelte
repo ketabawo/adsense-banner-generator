@@ -1,22 +1,29 @@
 <script lang="ts">
   import { targetingFor, locationLabel } from '$lib/targeting/rules';
   import AdsSubmission from './AdsSubmission.svelte';
+  import CreativeThumbnail from './CreativeThumbnail.svelte';
   import { tick } from 'svelte';
   import { drawBanner } from '$lib/banner/drawBanner';
+  import { isSupportedBannerSize } from '$lib/banner/imageUpload';
   import type { CampaignDraft, GoogleAdsDraft } from '$lib/types/campaign';
-  import type { CreativeSource } from '$lib/types/creative';
+  import type { CreativeSource, CreativeVariant } from '$lib/types/creative';
 
-  let { draft, ads, creativeName, creativeSource, backgroundImage, onCancel, onConfirm }: {
+  let { draft, ads, creativeName, creativeSource, variants = [], activeVariantId, backgroundImage, onCancel, onConfirm }: {
     draft: CampaignDraft;
     ads: GoogleAdsDraft;
     creativeName: string;
     creativeSource: CreativeSource;
+    variants?: CreativeVariant[];
+    activeVariantId?: string;
     backgroundImage?: HTMLImageElement;
     onCancel: () => void;
     onConfirm: () => void;
   } = $props();
   const yen = new Intl.NumberFormat('ja-JP');
   let canvas = $state<HTMLCanvasElement>();
+  const reviewVariants = $derived(creativeSource.type === 'studio'
+    ? (variants.length ? variants : [{ id: activeVariantId ?? 'base', state: creativeSource.state }])
+    : []);
 
   $effect(() => {
     JSON.stringify(creativeSource);
@@ -74,6 +81,21 @@
       {/if}
     </div>
   </div>
+  {#if reviewVariants.length > 1}
+    <section class="variant-review" aria-label="作成したサイズ別バナー">
+      <div><strong>作成したサイズ別バナー</strong><span>{reviewVariants.length}件</span></div>
+      <p>青いカードが現在の入稿対象です。ほかのサイズも下書きとして保存されます。</p>
+      <div class="variant-grid">
+        {#each reviewVariants as variant}
+          {@const active = variant.id === activeVariantId}
+          <article class:active>
+            <CreativeThumbnail source={{ type: 'studio', state: variant.state }} />
+            <div><strong>{variant.state.size.label || `${variant.state.size.width} × ${variant.state.size.height}`}</strong><small>{active ? '現在の入稿対象' : '下書きに保存'}</small></div>
+          </article>
+        {/each}
+      </div>
+    </section>
+  {/if}
   <div class="review-grid">
     <dl>
       <div><dt>Campaign</dt><dd>{draft.name}</dd></div>
@@ -91,7 +113,11 @@
   </div>
   <div class="notice">安全のため、実際のAPI入稿時も一時停止状態で作成します。</div>
   <div class="actions"><button class="cancel" onclick={onCancel}>戻って修正</button><button class="confirm" onclick={onConfirm}>下書きを保存</button></div>
-  {#key JSON.stringify(creativeSource)}<AdsSubmission {draft} {ads} {makeImage} />{/key}
+  {#if isSupportedBannerSize(creativeSource.type === 'studio' ? creativeSource.state.size.width : creativeSource.asset.width, creativeSource.type === 'studio' ? creativeSource.state.size.height : creativeSource.asset.height)}
+    {#key JSON.stringify(creativeSource)}<AdsSubmission {draft} {ads} {makeImage} />{/key}
+  {:else}
+    <p class="variant-notice">このサイズは現在の固定サイズ画像広告への入稿対象外です。下書き保存やPNG出力はできます。入稿する場合は、エディタで対応サイズのVariantを選択してください。</p>
+  {/if}
 </section>
 
 <style>
@@ -111,6 +137,18 @@
   .creative-copy div { display: grid; gap: 4px; padding: 10px 13px; background: white; }
   .creative-copy span { color: #64748b; font-size: 9px; }
   .creative-copy strong { white-space: pre-line; font-size: 11px; }
+  .variant-review { margin: 0 0 20px; padding: 14px; border: 1px solid #dbe3ef; border-radius: 5px; background: white; }
+  .variant-review > div:first-child { display: flex; align-items: center; justify-content: space-between; }
+  .variant-review > div:first-child strong { font-size: 12px; }
+  .variant-review > div:first-child span { color: #64748b; font-size: 10px; }
+  .variant-review p { margin: 5px 0 12px; }
+  .variant-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .variant-grid article { overflow: hidden; border: 1px solid #cbd5e1; border-radius: 5px; background: #f8fafc; }
+  .variant-grid article.active { border-color: #2563eb; box-shadow: 0 0 0 1px #2563eb; }
+  .variant-grid article :global(canvas) { width: 100%; max-width: none; max-height: 110px; object-fit: contain; box-shadow: none; }
+  .variant-grid article > div { display: grid; gap: 3px; padding: 8px; border-top: 1px solid #e2e8f0; }
+  .variant-grid article strong { font-size: 10px; }
+  .variant-grid article small { color: #64748b; font-size: 9px; }
   .review-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; align-items: start; }
   dl { margin: 0; overflow: hidden; border: 1px solid #e2e8f0; border-radius: 5px; }
   dl div { display: grid; grid-template-columns: 120px 1fr; border-bottom: 1px solid #e2e8f0; }
@@ -120,6 +158,7 @@
   dd { color: #172033; font-weight: 650; }
   dd.url { overflow-wrap: anywhere; }
   .notice { margin-top: 15px; padding: 10px 12px; border-radius: 5px; background: #fff7ed; color: #9a3412; font-size: 11px; }
+  .variant-notice { margin-top: 16px; padding: 12px; border-radius: 5px; background: #eff6ff; color: #1e40af; font-size: 12px; }
   .actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
   button { border: 0; border-radius: 5px; padding: 11px 16px; cursor: pointer; font: inherit; font-size: 12px; font-weight: 750; }
   .cancel { background: #f1f5f9; color: #475569; }

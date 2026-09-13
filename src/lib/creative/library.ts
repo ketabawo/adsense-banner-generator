@@ -1,6 +1,6 @@
 import { openDB, type DBSchema } from 'idb';
 import type { Campaign } from '$lib/types/campaign';
-import type { Creative, LibraryCreative } from '$lib/types/creative';
+import type { Creative, CreativeVariant, LibraryCreative } from '$lib/types/creative';
 
 const DB_NAME = 'studio.creative-library';
 const DB_VERSION = 1;
@@ -56,9 +56,10 @@ export async function migrateCampaignCreatives(campaigns: Campaign[]): Promise<L
   return loadCreativeLibrary();
 }
 
-export function toLibraryCreative(creative: Creative, existing: LibraryCreative | undefined, now: string): LibraryCreative {
+export function toLibraryCreative(creative: Creative, existing: LibraryCreative | undefined, now: string, variants?: CreativeVariant[]): LibraryCreative {
   return {
     ...structuredClone(creative),
+    ...(variants ? { variants: structuredClone(variants) } : existing?.variants ? { variants: structuredClone(existing.variants) } : {}),
     createdAt: existing?.createdAt ?? now,
     updatedAt: now
   };
@@ -68,8 +69,10 @@ export function creativeUsageCount(campaigns: Campaign[], creativeId: string) {
   return campaigns.filter((campaign) => campaign.creative.id === creativeId).length;
 }
 
-export function sameCreativeContent(creative: Pick<Creative, 'name' | 'source'>, libraryCreative: LibraryCreative) {
-  return creative.name === libraryCreative.name && JSON.stringify(creative.source) === JSON.stringify(libraryCreative.source);
+export function sameCreativeContent(creative: Pick<Creative, 'name' | 'source' | 'activeVariantId'>, libraryCreative: LibraryCreative, variants?: CreativeVariant[]) {
+  return creative.name === libraryCreative.name && JSON.stringify(creative.source) === JSON.stringify(libraryCreative.source)
+    && creative.activeVariantId === libraryCreative.activeVariantId
+    && (variants === undefined || JSON.stringify(variants) === JSON.stringify(libraryCreative.variants));
 }
 
 export const CREATIVE_LIBRARY_DB_NAME = DB_NAME;

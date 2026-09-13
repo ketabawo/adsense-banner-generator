@@ -44,6 +44,30 @@ describe('Creativeライブラリ', () => {
     expect(sameCreativeContent({ ...value, name: 'Campaign専用版' }, original)).toBe(false);
   });
 
+  it('別サイズのVariant編集をCreativeの変更として扱い、ライブラリに保存する', () => {
+    const value = campaign().creative;
+    const state = value.source.type === 'studio' ? value.source.state : undefined;
+    if (!state) throw new Error('studio fixture expected');
+    const variants = [{ id: 'base', state }, { id: 'square', state: { ...state, size: { id: '1200x1200', width: 1200, height: 1200, label: 'Square' } } }];
+    const original = toLibraryCreative({ ...value, activeVariantId: 'base' }, undefined, '2026-09-01T00:00:00.000Z', variants);
+    expect(sameCreativeContent(original, original, variants)).toBe(true);
+    const changed = structuredClone(variants);
+    changed[1].state.headline.text = '別のコピー';
+    expect(sameCreativeContent(original, original, changed)).toBe(false);
+  });
+
+  it('複数Variantの編集状態をIndexedDBから読み直せる', async () => {
+    const value = campaign().creative;
+    const state = value.source.type === 'studio' ? value.source.state : undefined;
+    if (!state) throw new Error('studio fixture expected');
+    const variants = [{ id: 'base', state }, { id: 'portrait', state: { ...state, size: { id: '960x1200', width: 960, height: 1200, label: 'Portrait' }, background: { ...state.background, image: 'data:image/webp;base64,cG9ydHJhaXQ=' } } }];
+    await saveLibraryCreative(toLibraryCreative({ ...value, activeVariantId: 'portrait' }, undefined, '2026-09-13T00:00:00.000Z', variants));
+    const reloaded = (await loadCreativeLibrary())[0];
+    expect(reloaded.activeVariantId).toBe('portrait');
+    expect(reloaded.variants).toHaveLength(2);
+    expect(reloaded.variants?.[1].state.background.image).toBe('data:image/webp;base64,cG9ydHJhaXQ=');
+  });
+
   it('ライブラリから削除してもCampaignのスナップショットは残る', async () => {
     const sourceCampaign = campaign();
     await migrateCampaignCreatives([sourceCampaign]);

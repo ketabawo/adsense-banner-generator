@@ -20,6 +20,16 @@ it('sends the brief to the image API and returns a local image data URL', async 
   expect(body.prompt).toContain('Do not add any letters');
 });
 
+it('requests a matching composition for each saved Variant size', async () => {
+  fetcher.mockImplementation(() => Promise.resolve(new Response(JSON.stringify({ data: [{ b64_json: 'dGVzdA==' }] }))));
+  for (const [target, expected] of [['1200x628', '1536x800'], ['1200x1200', '1200x1200'], ['960x1200', '960x1200'], ['900x1600', '896x1600']]) {
+    await generateBackground('商品写真', target);
+    const body = JSON.parse(fetcher.mock.calls.at(-1)![1].body);
+    expect(body.size).toBe(expected);
+    expect(body.prompt).toContain(target.replace('x', ':'));
+  }
+});
+
 it('does not expose provider errors or call without a key', async () => {
   fetcher.mockResolvedValue(new Response(JSON.stringify({ error: { message: 'private-account' } }), { status: 500 }));
   const error = await generateBackground('景色').catch(error => error);

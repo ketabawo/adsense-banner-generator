@@ -47,4 +47,24 @@ describe('入稿前Review', () => {
     expect(screen.getByText('完成画像アップロード')).toBeInTheDocument();
     expect(screen.getByText('PNG')).toBeInTheDocument();
   });
+
+  it('制作専用Variantでは入稿操作を表示せず、下書き保存を許可する', () => {
+    const creative = createDefaultCreativeState();
+    creative.size = { id: '1200x628', width: 1200, height: 628, label: 'Landscape' };
+    render(CampaignReview, { draft: campaignDraft(), ads: adsDraft(), creativeName: 'Landscape', creativeSource: { type: 'studio', state: creative }, onCancel: vi.fn(), onConfirm: vi.fn() });
+    expect(screen.getByText('下書きを保存')).toBeInTheDocument();
+    expect(screen.getByText(/現在の固定サイズ画像広告への入稿対象外/)).toBeInTheDocument();
+    expect(screen.queryByText('テストアカウントへ入稿')).not.toBeInTheDocument();
+  });
+
+  it('サイズ別に作成したVariantをすべてReviewで表示する', () => {
+    const rectangle = createDefaultCreativeState();
+    const landscape = structuredClone(rectangle);
+    landscape.size = { id: '1200x628', width: 1200, height: 628, label: 'Landscape 1200 × 628' };
+    render(CampaignReview, { draft: campaignDraft(), ads: adsDraft(), creativeName: '複数サイズ', creativeSource: { type: 'studio', state: landscape }, variants: [{ id: 'rectangle', state: rectangle }, { id: 'landscape', state: landscape }], activeVariantId: 'landscape', onCancel: vi.fn(), onConfirm: vi.fn() });
+    expect(screen.getByRole('region', { name: '作成したサイズ別バナー' })).toBeInTheDocument();
+    expect(screen.getByText('Landscape 1200 × 628')).toBeInTheDocument();
+    expect(screen.getByText('現在の入稿対象')).toBeInTheDocument();
+    expect(screen.getByText('下書きに保存')).toBeInTheDocument();
+  });
 });

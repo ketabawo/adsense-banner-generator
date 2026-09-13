@@ -14,7 +14,7 @@ const creative: LibraryCreative = {
 describe('保存済みCreative一覧', () => {
   it('Creative情報と使用Campaign数を表示して選択できる', async () => {
     const onSelect = vi.fn();
-    render(CreativeLibrary, { creatives: [creative], usageCount: () => 2, onSelect, onDelete: vi.fn() });
+    render(CreativeLibrary, { creatives: [creative], usageCount: () => 2, onSelect, onSelectVariant: vi.fn(), onDelete: vi.fn() });
     expect(screen.getByText('完成画像 ・ 300 × 250px')).toBeInTheDocument();
     expect(screen.getByText(/2 Campaignで使用/)).toBeInTheDocument();
     await fireEvent.click(screen.getByText('完成バナー'));
@@ -24,9 +24,18 @@ describe('保存済みCreative一覧', () => {
   it('削除操作を選択操作と分離する', async () => {
     const onSelect = vi.fn();
     const onDelete = vi.fn();
-    render(CreativeLibrary, { creatives: [creative], usageCount: () => 0, onSelect, onDelete });
+    render(CreativeLibrary, { creatives: [creative], usageCount: () => 0, onSelect, onSelectVariant: vi.fn(), onDelete });
     await fireEvent.click(screen.getByRole('button', { name: '完成バナーをライブラリから削除' }));
     expect(onDelete).toHaveBeenCalledWith(creative);
     expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it('保存済みのサイズ違いを直接選べる', async () => {
+    const onSelectVariant = vi.fn();
+    const base = { size: { id: '1200x1200', width: 1200, height: 1200, label: 'Square 1200 × 1200' } };
+    const variants = [{ id: 'square', state: base }, { id: 'portrait', state: { size: { id: '960x1200', width: 960, height: 1200, label: 'Portrait 960 × 1200' } } }];
+    render(CreativeLibrary, { creatives: [{ ...creative, variants: variants as LibraryCreative['variants'] }], usageCount: () => 0, onSelect: vi.fn(), onSelectVariant, onDelete: vi.fn() });
+    await fireEvent.click(screen.getByRole('button', { name: 'Portrait 960 × 1200' }));
+    expect(onSelectVariant).toHaveBeenCalledWith(expect.objectContaining({ id: creative.id }), 'portrait');
   });
 });

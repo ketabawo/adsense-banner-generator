@@ -65,9 +65,15 @@ export type Creative = {
   id: string;
   name: string;
   source: CreativeSource;
+  /** The variant selected for this Campaign's preview and fixed-image submission. */
+  activeVariantId?: string;
 };
+
+export type CreativeVariant = { id: string; state: CreativeState; name?: string };
 
 export type LibraryCreative = Creative & {
   createdAt: string;
   updatedAt: string;
+  /** Full editable variants live in IndexedDB; Campaign localStorage keeps the selected state only. */
+  variants?: CreativeVariant[];
 };

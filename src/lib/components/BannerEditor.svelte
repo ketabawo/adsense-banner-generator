@@ -1,6 +1,5 @@
 <script lang="ts">
   import Field from './Field.svelte';
-  import { BANNER_SIZES } from '$lib/banner/sizes';
   import type { CreativeState, TextAlign } from '$lib/types/creative';
 
   let { creativeState, onImageUpload, onGenerateImage, imageGenerating, imageError }: {
@@ -11,21 +10,12 @@
     imageError: string;
   } = $props();
   let imagePrompt = $state('');
-
-  function chooseSize(event: Event) {
-    const size = BANNER_SIZES.find((item) => item.id === (event.currentTarget as HTMLSelectElement).value);
-    if (size) creativeState.size = size;
-  }
 </script>
 
 <div class="editor">
   <section>
     <h2><span>1</span> 基本設定</h2>
-    <Field label="バナーサイズ">
-      <select value={creativeState.size.id} onchange={chooseSize}>
-        {#each BANNER_SIZES as size}<option value={size.id}>{size.label}</option>{/each}
-      </select>
-    </Field>
+    <p class="current-size">編集中：<strong>{creativeState.size.label}</strong><br />サイズの切替・追加は上の「サイズ別の画像」で行います。</p>
     <div class="template-row"><span>テンプレート</span><strong>Simple</strong></div>
   </section>
 
@@ -104,10 +94,11 @@
   section { padding: 20px; border: 1px solid #e2e8f0; border-radius: 5px; background: white; display: grid; gap: 15px; }
   h2 { margin: 0; display: flex; align-items: center; gap: 9px; color: #172033; font-size: 14px; }
   h2 > span { display: grid; width: 23px; height: 23px; place-items: center; border-radius: 5px; background: #eff6ff; color: #2563eb; font-size: 12px; }
-  select, textarea, input:not([type='color']):not([type='checkbox']):not([type='range']):not([type='file']) { box-sizing: border-box; width: 100%; border: 1px solid #cbd5e1; border-radius: 5px; background: white; padding: 10px 11px; color: #172033; font: inherit; font-weight: 450; outline: none; }
-  select:focus, textarea:focus, input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px #dbeafe; }
+  textarea, input:not([type='color']):not([type='checkbox']):not([type='range']):not([type='file']) { box-sizing: border-box; width: 100%; border: 1px solid #cbd5e1; border-radius: 5px; background: white; padding: 10px 11px; color: #172033; font: inherit; font-weight: 450; outline: none; }
+  textarea:focus, input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px #dbeafe; }
   textarea { resize: vertical; line-height: 1.5; }
   .template-row { display: flex; justify-content: space-between; color: #64748b; font-size: 13px; }
+  .current-size { margin: 0; padding: 10px; border-radius: 5px; background: #eff6ff; color: #475569; font-size: 12px; line-height: 1.6; }
   .template-row strong { color: #2563eb; }
   .segmented { display: grid; grid-template-columns: 1fr 1fr; padding: 3px; border-radius: 5px; background: #f1f5f9; }
   button { border: 0; border-radius: 5px; padding: 8px; background: transparent; color: #64748b; cursor: pointer; font: inherit; font-size: 12px; }

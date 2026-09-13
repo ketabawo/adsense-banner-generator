@@ -2,6 +2,8 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { privateHeaders, requireSameOrigin, requireUser } from '$lib/server/auth/http';
 import { generateBackground, ImageGenerationError, imageGenerationConfigured } from '$lib/server/image-generation/openai';
+import { BANNER_SIZES } from '$lib/banner/sizes';
+import { VARIANT_SIZES } from '$lib/banner/variantSizes';
 
 export const prerender = false;
 export const GET: RequestHandler = async (event) => {
@@ -28,9 +30,10 @@ export const POST: RequestHandler = async (event) => {
     }
     raw = Buffer.concat(chunks).toString('utf8');
   } catch { return json({ message: '入力が長すぎます。' }, { status: 413 }); }
-  let prompt: unknown;
-  try { prompt = JSON.parse(raw).prompt; } catch { return json({ message: '入力を読み取れませんでした。' }, { status: 400 }); }
+  let prompt: unknown, size: unknown;
+  try { const input = JSON.parse(raw); prompt = input.prompt; size = input.size; } catch { return json({ message: '入力を読み取れませんでした。' }, { status: 400 }); }
   if (typeof prompt !== 'string' || !prompt.trim() || prompt.length > 2000) return json({ message: '画像の説明を2000文字以内で入力してください。' }, { status: 400 });
-  try { return json({ image: await generateBackground(prompt.trim()) }); }
+  if (size !== undefined && (typeof size !== 'string' || ![...BANNER_SIZES, ...VARIANT_SIZES].some(item => item.id === size))) return json({ message: '画像サイズが不正です。' }, { status: 400 });
+  try { return json({ image: await generateBackground(prompt.trim(), size) }); }
   catch (error) { return json({ message: error instanceof ImageGenerationError ? error.message : '画像を生成できませんでした。' }, { status: error instanceof ImageGenerationError ? error.status : 502 }); }
 };

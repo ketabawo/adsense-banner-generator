@@ -13,17 +13,21 @@
   import CampaignReview from '$lib/components/CampaignReview.svelte';
   import CreativeSourceSelector from '$lib/components/CreativeSourceSelector.svelte';
   import UploadedCreativeEditor from '$lib/components/UploadedCreativeEditor.svelte';
+  import CreativeVariants from '$lib/components/CreativeVariants.svelte';
   import CreativeLibrary from '$lib/components/CreativeLibrary.svelte';
   import { createDefaultCreativeState } from '$lib/banner/defaultState';
   import { isSupportedBannerSize, validateImageFile } from '$lib/banner/imageUpload';
   import { loadCampaigns, saveCampaigns } from '$lib/campaign/storage';
   import { settingsForObjective, validateCampaignDraft, withoutCampaign } from '$lib/campaign/rules';
   import { creativeUsageCount, loadCreativeLibrary, migrateCampaignCreatives, removeLibraryCreative, sameCreativeContent, saveLibraryCreative, toLibraryCreative } from '$lib/creative/library';
+  import { collectVariants, createVariant } from '$lib/creative/variants';
   import type { Campaign, CampaignDraft, GoogleAdsDraft } from '$lib/types/campaign';
-  import type { CreativeMode, CreativeSource, LibraryCreative, UploadedCreativeAsset } from '$lib/types/creative';
+  import type { CreativeMode, CreativeSize, CreativeSource, CreativeVariant, LibraryCreative, UploadedCreativeAsset } from '$lib/types/creative';
 
   // Manual controls and future AI commands must update this same state object.
   let creative = $state(createDefaultCreativeState());
+  let variants = $state<CreativeVariant[]>([]);
+  let activeVariantId = $state('base');
   let backgroundImage = $state<HTMLImageElement | undefined>();
   let imageError = $state('');
   let imageGenerating = $state(false);
@@ -50,9 +54,10 @@
   });
   let googleAds = $state<GoogleAdsDraft>({ adName: '', location: '日本', targeting: defaultTargeting(), bidding: 'maximize_clicks' });
   let savedSnapshot = $state('');
+  let libraryReady: Promise<void> = Promise.resolve();
 
   function currentSnapshot() {
-    return JSON.stringify({ draft, googleAds, creativeMode, creativeName, creative, uploadedAsset, selectedLibraryId: selectedLibraryCreative?.id });
+    return JSON.stringify({ draft, googleAds, creativeMode, creativeName, creative, variants, activeVariantId, uploadedAsset, selectedLibraryId: selectedLibraryCreative?.id });
   }
 
   let hasUnsavedChanges = $derived(savedSnapshot !== '' && currentSnapshot() !== savedSnapshot);
@@ -60,7 +65,7 @@
   $effect(() => {
     const loadedCampaigns = loadCampaigns();
     campaigns = loadedCampaigns;
-    void initializeCreativeLibrary(loadedCampaigns);
+    libraryReady = initializeCreativeLibrary(loadedCampaigns);
     if (!savedSnapshot) savedSnapshot = currentSnapshot();
   });
 
@@ -104,8 +109,64 @@
       return;
     }
     const image = new Image();
-    image.onload = () => backgroundImage = image;
+    image.onload = () => {
+      const currentUrl = creativeMode === 'library' && selectedLibraryCreative?.source.type === 'studio'
+        ? selectedLibraryCreative.source.state.background.image : creative.background.image;
+      if (url === currentUrl) backgroundImage = image;
+    };
     image.src = url;
+  }
+
+  function currentVariants(): CreativeVariant[] {
+    return collectVariants($state.snapshot(variants), activeVariantId, $state.snapshot(creative));
+  }
+
+  function selectVariant(id: string) {
+    if (id === activeVariantId) return;
+    const all = currentVariants();
+    const selected = all.find(variant => variant.id === id);
+    if (!selected) return;
+    variants = all;
+    activeVariantId = id;
+    creative = structuredClone(selected.state);
+    loadBackgroundImage(creative.background.image);
+    imageError = '';
+  }
+
+  function addVariant(size: CreativeSize) {
+    const all = currentVariants();
+    const existing = all.find(variant => variant.state.size.width === size.width && variant.state.size.height === size.height);
+    if (existing) { selectVariant(existing.id); return; }
+    const id = crypto.randomUUID();
+    const next = createVariant($state.snapshot(creative), size, id);
+    variants = [...all, next];
+    activeVariantId = id;
+    creative = next.state;
+    backgroundImage = undefined;
+    imageError = '';
+  }
+
+  function removeVariant(id: string) {
+    const all = currentVariants();
+    if (all.length <= 1) return;
+    const remaining = all.filter(variant => variant.id !== id);
+    variants = remaining;
+    if (id === activeVariantId) {
+      activeVariantId = remaining[0].id;
+      creative = structuredClone(remaining[0].state);
+      loadBackgroundImage(creative.background.image);
+    }
+  }
+
+  function importVariant(state: CreativeVariant['state'], name: string) {
+    const all = currentVariants();
+    const id = crypto.randomUUID();
+    const next: CreativeVariant = { id, state: structuredClone($state.snapshot(state)), name: `${name}から追加` };
+    variants = [...all, next];
+    activeVariantId = id;
+    creative = next.state;
+    loadBackgroundImage(creative.background.image);
+    imageError = '';
   }
 
   function selectLibraryCreative(selected: LibraryCreative) {
@@ -116,9 +177,15 @@
     libraryError = '';
   }
 
+  function selectLibraryVariant(selected: LibraryCreative, variantId: string) {
+    const variant = selected.variants?.find(item => item.id === variantId);
+    if (!variant) return;
+    selectLibraryCreative({ ...selected, source: { type: 'studio', state: structuredClone(variant.state) }, activeVariantId: variantId });
+  }
+
   async function deleteLibraryCreative(selected: LibraryCreative) {
     const usage = creativeUsageCount(campaigns, selected.id);
-    const usageMessage = usage > 0 ? `\n${usage}件のCampaign内のCreativeは削除されず、そのまま残ります。` : '';
+    const usageMessage = usage > 0 ? `\n${usage}件のCampaign内の選択中Creativeは残ります。ライブラリに保存された他サイズのVariantは削除されます。` : '';
     if (!window.confirm(`「${selected.name}」をライブラリから削除しますか？${usageMessage}`)) return;
     try {
       await removeLibraryCreative(selected.id);
@@ -240,21 +307,24 @@
   async function generateBackgroundImage(prompt: string) {
     if (imageGenerating) return;
     const targetCreative = creative;
+    const targetSize = $state.snapshot(creative.size);
     imageGenerating = true; imageError = '';
     try {
-      const response = await fetch('/api/image-generation', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ prompt }) });
+      const response = await fetch('/api/image-generation', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ prompt, size: targetSize.id }) });
       const result = await response.json();
       if (!response.ok) throw new Error(result.message || '画像を生成できませんでした。');
       const image = new Image();
       await new Promise<void>((resolve, reject) => { image.onload = () => resolve(); image.onerror = reject; image.src = result.image; });
       const canvas = document.createElement('canvas');
-      canvas.width = image.naturalWidth; canvas.height = image.naturalHeight;
+      canvas.width = targetSize.width; canvas.height = targetSize.height;
       const context = canvas.getContext('2d');
       if (!context) throw new Error('生成画像を処理できませんでした。');
-      context.drawImage(image, 0, 0);
+      const scale = Math.max(canvas.width / image.naturalWidth, canvas.height / image.naturalHeight);
+      const width = image.naturalWidth * scale, height = image.naturalHeight * scale;
+      context.drawImage(image, (canvas.width - width) / 2, (canvas.height - height) / 2, width, height);
       const optimizedUrl = canvas.toDataURL('image/webp', 0.86);
       if (optimizedUrl.length * 2 > 2_500_000) throw new Error('生成画像が保存可能な容量を超えました。もう一度お試しください。');
-      if (creative !== targetCreative || creativeMode !== 'studio') return;
+      if (creative !== targetCreative || creativeMode !== 'studio' || creative.size.width !== targetSize.width || creative.size.height !== targetSize.height) return;
       creative.background.image = optimizedUrl;
       creative.background.type = 'image';
       loadBackgroundImage(optimizedUrl);
@@ -308,10 +378,11 @@
     }
     const savedCreativeName = creativeName.trim() || `${draft.name.trim()} Creative`;
     const existingLibraryCreative = existing ? libraryCreatives.find((item) => item.id === existing.creative.id) : undefined;
-    const contentForComparison = { name: savedCreativeName, source: creativeSource };
+    const studioVariants = creativeMode === 'studio' ? currentVariants() : undefined;
+    const contentForComparison = { name: savedCreativeName, source: creativeSource, activeVariantId: studioVariants ? activeVariantId : undefined };
     const creativeId = creativeMode === 'library' && selectedLibraryCreative
       ? selectedLibraryCreative.id
-      : existing && (!existingLibraryCreative || sameCreativeContent(contentForComparison, existingLibraryCreative))
+      : existing && (!existingLibraryCreative || sameCreativeContent(contentForComparison, existingLibraryCreative, studioVariants))
         ? existing.creative.id
         : crypto.randomUUID();
     const campaign: Campaign = {
@@ -320,7 +391,7 @@
       targetKpi: { type: draft.targetKpi.type, value: targetValue },
       id,
       status: 'draft',
-      creative: { id: creativeId, name: savedCreativeName, source: creativeSource },
+      creative: { id: creativeId, name: savedCreativeName, source: creativeSource, ...(studioVariants ? { activeVariantId } : selectedLibraryCreative?.activeVariantId ? { activeVariantId: selectedLibraryCreative.activeVariantId } : {}) },
       googleAds: {
         channel: 'google_ads',
         campaignType: 'display',
@@ -344,17 +415,22 @@
       saveMessage = '保存容量を超えました。画像を小さくしてお試しください。';
       return;
     }
+    let librarySaved = true;
     try {
       const libraryCreativeToUpdate = libraryCreatives.find((item) => item.id === campaign.creative.id);
-      await saveLibraryCreative(toLibraryCreative(campaign.creative, libraryCreativeToUpdate, now));
+      if (creativeMode !== 'library') await saveLibraryCreative(toLibraryCreative(campaign.creative, libraryCreativeToUpdate, now, studioVariants));
       libraryCreatives = await loadCreativeLibrary();
     } catch {
+      librarySaved = false;
       libraryError = 'Campaignは保存しましたが、Creativeライブラリを更新できませんでした。';
+      saveMessage = studioVariants && studioVariants.length > 1
+        ? 'Campaignの選択中画像は保存しましたが、他サイズのVariantを保存できませんでした。再度保存してください。'
+        : libraryError;
     }
     editingId = campaign.id;
     showReview = false;
-    saveMessage = `「${campaign.name}」を下書き保存しました。`;
-    savedSnapshot = currentSnapshot();
+    if (librarySaved) saveMessage = `「${campaign.name}」を下書き保存しました。`;
+    if (librarySaved) savedSnapshot = currentSnapshot();
   }
 
   function createCampaign() {
@@ -381,6 +457,8 @@
     googleAds.targeting = defaultTargeting();
     googleAds.bidding = 'maximize_clicks';
     creative = createDefaultCreativeState();
+    variants = [];
+    activeVariantId = 'base';
     backgroundImage = undefined;
     creativeMode = 'studio';
     creativeName = '';
@@ -391,8 +469,9 @@
     savedSnapshot = currentSnapshot();
   }
 
-  function editCampaign(campaign: Campaign) {
+  async function editCampaign(campaign: Campaign) {
     if (campaign.id !== editingId && !confirmDiscardChanges()) return;
+    await libraryReady;
     const selected = $state.snapshot(campaign);
     editingId = selected.id;
     saveMessage = '';
@@ -417,15 +496,12 @@
       creativeMode = 'studio';
       uploadedAsset = undefined;
       creative = structuredClone(selected.creative.source.state);
-      const imageUrl = creative.background.image;
-      if (imageUrl) {
-        const image = new Image();
-        image.onload = () => backgroundImage = image;
-        image.src = imageUrl;
-      } else {
-        backgroundImage = undefined;
-      }
+      activeVariantId = selected.creative.activeVariantId ?? 'base';
+      variants = structuredClone(libraryCreatives.find(item => item.id === selected.creative.id)?.variants ?? [{ id: activeVariantId, state: creative }]);
+      loadBackgroundImage(creative.background.image);
     } else {
+      variants = [];
+      activeVariantId = 'base';
       creativeMode = 'upload';
       uploadedAsset = structuredClone(selected.creative.source.asset);
       backgroundImage = undefined;
@@ -469,9 +545,10 @@
   <CampaignList {campaigns} activeId={editingId} onCreate={createCampaign} onEdit={editCampaign} onDelete={deleteCampaign} />
   <CampaignSetup {draft} {dateError} onObjectiveChange={syncObjective} />
   <section class="creative-step">
-    <div class="creative-title"><span>2</span><div><h2>Creativeを選択</h2><p>studioで作成するか、完成済みの広告画像を登録します。</p></div></div>
+    <div class="creative-title"><span>2</span><div><h2>Creativeを用意</h2><p>新しく作る、完成画像をアップロードする、保存済みを使う、のどれか一つを選びます。</p></div></div>
     <CreativeSourceSelector mode={creativeMode} onSelect={selectCreativeMode} />
     {#if creativeMode === 'studio'}
+      <CreativeVariants {variants} activeId={activeVariantId} currentState={creative} savedCreatives={libraryCreatives} onSelect={selectVariant} onAdd={addVariant} onImport={importVariant} onRemove={removeVariant} />
       <div class="workspace">
         <BannerEditor creativeState={creative} {imageError} {imageGenerating} onImageUpload={handleImageUpload} onGenerateImage={generateBackgroundImage} />
         <BannerPreview {creative} {backgroundImage} />
@@ -479,7 +556,9 @@
     {:else if creativeMode === 'upload'}
       <UploadedCreativeEditor name={creativeName} asset={uploadedAsset} error={uploadError} onNameInput={(name) => creativeName = name} onUpload={handleCompletedCreativeUpload} />
     {:else}
-      <CreativeLibrary creatives={libraryCreatives} selectedId={selectedLibraryCreative?.id} usageCount={(id) => creativeUsageCount(campaigns, id)} onSelect={selectLibraryCreative} onDelete={deleteLibraryCreative} />
+      <div class="library-intro"><strong>Campaignのバナーを一枚に差し替える</strong><p>選択したバナーだけが、このCampaignのCreativeになります。Reviewにも選択した一枚だけが表示されます。既存のサイズ別一覧へ画像を追加したい場合は「新しいバナーを作る」に戻り、「以前の画像をサイズ別編集に戻す」を使ってください。</p></div>
+      <CreativeLibrary creatives={libraryCreatives} selectedId={selectedLibraryCreative?.id} selectedVariantId={selectedLibraryCreative?.activeVariantId} usageCount={(id) => creativeUsageCount(campaigns, id)} onSelect={selectLibraryCreative} onSelectVariant={selectLibraryVariant} onDelete={deleteLibraryCreative} />
+      {#if selectedLibraryCreative}<p class="library-selected" role="status">「{selectedLibraryCreative.name}」へ差し替えました。Reviewにはこの一枚だけを表示します。</p>{/if}
       {#if libraryError}<p class:library-success={libraryError.includes('削除しました')} class="library-message" role="status">{libraryError}</p>{/if}
     {/if}
   </section>
@@ -491,8 +570,9 @@
   {#if saveMessage}<p class:save-error={saveMessage.includes('してください') || saveMessage.includes('超えました')} class="save-message">{saveMessage}</p>{/if}
   {#if showReview}
     {@const creativeSource = currentCreativeSource()}
+    {@const reviewVariants = creativeMode === 'studio' ? currentVariants() : []}
     <div class="review-anchor">
-      {#if creativeSource}<CampaignReview {draft} ads={googleAds} creativeName={creativeName.trim() || `${draft.name.trim()} Creative`} {creativeSource} {backgroundImage} onCancel={() => showReview = false} onConfirm={saveCampaign} />{/if}
+      {#if creativeSource}<CampaignReview {draft} ads={googleAds} creativeName={creativeName.trim() || `${draft.name.trim()} Creative`} {creativeSource} variants={reviewVariants} {activeVariantId} {backgroundImage} onCancel={() => showReview = false} onConfirm={saveCampaign} />{/if}
     </div>
   {/if}
 </main>
@@ -519,7 +599,7 @@
   .privacy small { max-width: 360px; color: #416b5d; font-size: 12px; line-height: 1.6; }
   .creative-step { margin-top: 24px; padding: 22px; border: 1px solid #dbe3ef; border-radius: 5px; background: white; box-shadow: 0 8px 24px #0f172a08; }
   .creative-title { display: flex; align-items: center; gap: 11px; margin-bottom: 18px; }
-  .creative-title > span { display: grid; width: 30px; height: 30px; place-items: center; border-radius: 9px; background: #2563eb; color: white; font-size: 13px; font-weight: 800; }
+  .creative-title > span { display: grid; width: 30px; height: 30px; place-items: center; border-radius: 5px; background: #2563eb; color: white; font-size: 13px; font-weight: 800; }
   .creative-title h2, .creative-title p { margin: 0; }
   .creative-title h2 { font-size: 16px; }
   .creative-title p { margin-top: 3px; color: #64748b; font-size: 11px; }
@@ -534,6 +614,10 @@
   .save-message.save-error { color: #dc2626; }
   .library-message { margin: 12px 0 0; color: #dc2626; font-size: 11px; }
   .library-message.library-success { color: #047857; }
+  .library-intro { margin: 0 0 12px; }
+  .library-intro strong { font-size: 13px; }
+  .library-intro p, .library-selected { margin: 4px 0 0; color: #64748b; font-size: 11px; }
+  .library-selected { margin-top: 12px; color: #166534; font-weight: 650; }
   footer { padding: 22px; border-top: 1px solid #e2e8f0; color: #94a3b8; font-size: 10px; text-align: center; }
   footer span { margin: 0 7px; color: #cbd5e1; }
   @media (max-width: 900px) { .workspace { grid-template-columns: 1fr; } .intro { gap: 18px; } }
