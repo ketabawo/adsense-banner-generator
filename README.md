@@ -47,6 +47,7 @@ Campaign作成 → Creative作成 → Google Ads入稿 → 計測
 - AI Campaign Assistantの相談・根拠付き提案（実モデル接続・画面確認済み）
 - OpenAIによるstudioバナーの背景画像生成（ユーザー操作で実生成、保存・再読み込み・読み込みを確認済み）
 - Landscape・Square・Portrait・Verticalのサイズ別Variant編集とCreativeライブラリ保存（自動テスト済み、実画面確認は未実施）
+- 入稿可能な固定サイズVariantをReviewで選択し、同一Campaign・Ad Groupへ複数のPAUSED Image Adとして一括入稿（テストアカウントで2件の作成・表示を確認済み）
 - Execution Plan：Campaign名・日予算の変更前後の保存、現在値の再確認、承認・取消・テストアカウントへの反映・結果再照合・手動確認による終了
 - Action Log：変更案の状態遷移をサーバーに保存し、履歴表示
 - Creative制作MVP
@@ -59,7 +60,7 @@ Campaign作成 → Creative作成 → Google Ads入稿 → 計測
 - PNG出力
 - PNG・JPEG・WebPの背景画像読み込みと下書きへの保持
 
-Googleログイン・Google Adsテストアカウント接続は実操作で検証済みです。停止状態での入稿も実操作で成功表示と作成リソースIDを確認済みです。2026-09-09のターゲティング付きテスト入稿では、Google側から地域8件・KW5件とCampaign・Ad Group・広告のPAUSED状態を再取得して確認済みです。日予算500円→600円の承認後反映、現在値600円の再取得、再読み込み後の履歴・Action Log保持も2026-09-11に確認済みです。未実装：本番アカウントへの入稿、サイズ別VariantのGoogle Ads入稿統合、Creativeのクラウド保存。最新の再開位置は末尾を参照してください。日付付きの開発記録は当時の状態を残しています。
+Googleログイン・Google Adsテストアカウント接続は実操作で検証済みです。停止状態での入稿も実操作で成功表示と作成リソースIDを確認済みです。2026-09-09のターゲティング付きテスト入稿では、Google側から地域8件・KW5件とCampaign・Ad Group・広告のPAUSED状態を再取得して確認済みです。2026-09-13には固定サイズVariant 2件を同一Campaign・Ad Groupへ入稿し、Google Ads管理画面で両方が一時停止中であることを確認しました。日予算500円→600円の承認後反映、現在値600円の再取得、再読み込み後の履歴・Action Log保持も2026-09-11に確認済みです。未実装：本番アカウントへの入稿、Landscape・Square・Portrait・VerticalのGoogle Ads広告形式への統合、Creativeのクラウド保存。最新の再開位置は末尾を参照してください。日付付きの開発記録は当時の状態を残しています。
 
 ## 設計原則
 
