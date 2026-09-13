@@ -42,6 +42,7 @@
       <p>GoogleログインとGoogle Adsの機能にはGoogleのサービスを使用します。Google側の取り扱いは<a href="https://policies.google.com/privacy">Googleのプライバシーポリシー</a>もご確認ください。現在のstudioには、広告・アクセス解析用のトラッカーを実装していません。</p>
       <p>AI相談の送信操作を行うと、選択したCampaignの名称・状態、集計期間・タイムゾーン・通貨・取得日時、合計と日別実績、および質問と直近3往復までの会話を、studioサーバーからOpenAI APIへ送信します。回答は広告運用の説明・相談・改善提案に使用し、広告設定を変更しません。画像・Googleの認証情報・メールアドレス・広告アカウントIDを自動でAIへ添付することはありません。質問やCampaign名に含まれる情報は送信対象になります。</p>
       <p>会話は利用中の画面内に保持し、studioのデータベースやブラウザストレージへ永続保存しません。ただし、AI提案を変更理由に引き継いで変更案を保存した場合、その抜粋は変更案の一部としてサーバーに保存します。Campaign・期間の切替、実績更新、再読み込み、ログアウトで画面内の会話は消えます。OpenAIにはレスポンスを保存しない設定（store: false）でリクエストしますが、これは不正利用監視などを含むすべての保持を無効にする設定ではありません。OpenAI側の扱いは<a href="https://developers.openai.com/api/docs/guides/your-data">APIのデータ管理に関する説明</a>をご確認ください。</p>
+      <p>背景画像のAI生成を実行すると、入力した画像の説明文をstudioサーバーからOpenAIの画像生成APIへ送信します。生成画像はブラウザに返し、バナー背景として編集・保存できます。説明文や生成画像をstudioのサーバーには永続保存しません。OpenAI側のデータの扱いは上記のAPIの説明をご確認ください。</p>
       <p>Googleから取得した利用者データの利用・転送は、<a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>および適用されるLimited Use要件に従います。利用者データの販売や、このページで説明した機能と無関係な目的への利用は行いません。</p>
     </section>
 

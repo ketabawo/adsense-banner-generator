@@ -26,6 +26,7 @@
   let creative = $state(createDefaultCreativeState());
   let backgroundImage = $state<HTMLImageElement | undefined>();
   let imageError = $state('');
+  let imageGenerating = $state(false);
   let creativeMode = $state<CreativeMode>('studio');
   let creativeName = $state('');
   let uploadedAsset = $state<UploadedCreativeAsset | undefined>();
@@ -234,6 +235,31 @@
     };
     reader.onerror = () => imageError = '画像を読み込めませんでした。別の画像をお試しください。';
     reader.readAsDataURL(file);
+  }
+
+  async function generateBackgroundImage(prompt: string) {
+    if (imageGenerating) return;
+    const targetCreative = creative;
+    imageGenerating = true; imageError = '';
+    try {
+      const response = await fetch('/api/image-generation', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ prompt }) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || '画像を生成できませんでした。');
+      const image = new Image();
+      await new Promise<void>((resolve, reject) => { image.onload = () => resolve(); image.onerror = reject; image.src = result.image; });
+      const canvas = document.createElement('canvas');
+      canvas.width = image.naturalWidth; canvas.height = image.naturalHeight;
+      const context = canvas.getContext('2d');
+      if (!context) throw new Error('生成画像を処理できませんでした。');
+      context.drawImage(image, 0, 0);
+      const optimizedUrl = canvas.toDataURL('image/webp', 0.86);
+      if (optimizedUrl.length * 2 > 2_500_000) throw new Error('生成画像が保存可能な容量を超えました。もう一度お試しください。');
+      if (creative !== targetCreative || creativeMode !== 'studio') return;
+      creative.background.image = optimizedUrl;
+      creative.background.type = 'image';
+      loadBackgroundImage(optimizedUrl);
+    } catch (error) { imageError = error instanceof Error ? error.message : '画像を生成できませんでした。'; }
+    finally { imageGenerating = false; }
   }
 
   function validateCampaign() {
@@ -447,7 +473,7 @@
     <CreativeSourceSelector mode={creativeMode} onSelect={selectCreativeMode} />
     {#if creativeMode === 'studio'}
       <div class="workspace">
-        <BannerEditor state={creative} {imageError} onImageUpload={handleImageUpload} />
+        <BannerEditor creativeState={creative} {imageError} {imageGenerating} onImageUpload={handleImageUpload} onGenerateImage={generateBackgroundImage} />
         <BannerPreview {creative} {backgroundImage} />
       </div>
     {:else if creativeMode === 'upload'}
