@@ -11,8 +11,7 @@ export type CreativeMode = 'studio' | 'upload' | 'library';
 export type UploadedCreativeAsset = Extract<CreativeSource, { type: 'upload' }>['asset'];
 
 /**
- * The single editable state shared by the parameter UI and, in the future,
- * AI editing commands. This is the source data for studio-created creatives.
+ * The single editable state shared by the parameter UI and AI copy proposals. This is the source data for studio-created creatives.
  */
 export type CreativeState = {
   size: CreativeSize;

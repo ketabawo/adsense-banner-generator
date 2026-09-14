@@ -23,6 +23,23 @@ function getLayout(width: number, height: number) {
   return { compact, padding, contentWidth: width - padding * 2 };
 }
 
+// Measure using the actual canvas font. Preserve explicit line breaks and all
+// characters; automatic wrapping is shared by preview, PNG export and submission.
+function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
+  return text.split('\n').flatMap(paragraph => {
+    const lines: string[] = [];
+    let line = '';
+    for (const character of Array.from(paragraph)) {
+      if (line && ctx.measureText(line + character).width > maxWidth) {
+        lines.push(line);
+        line = character;
+      } else line += character;
+    }
+    lines.push(line);
+    return lines;
+  });
+}
+
 export function drawBanner(ctx: CanvasRenderingContext2D, state: CreativeState, image?: HTMLImageElement): DrawResult {
   const { width, height } = state.size;
   const { compact, padding, contentWidth } = getLayout(width, height);
@@ -39,13 +56,17 @@ export function drawBanner(ctx: CanvasRenderingContext2D, state: CreativeState, 
   const scale = compact ? Math.min(1, height / 100) : 1;
   const headlineSize = Math.max(12, state.headline.fontSize * scale);
   const lineHeight = headlineSize * 1.22;
-  const lines = state.headline.text.split('\n');
   const ctaHeight = compact ? Math.max(24, height * 0.46) : 38;
   const ctaGap = compact ? 16 : 18;
   const subSize = Math.max(9, state.subText.fontSize * scale);
-  const subHeight = state.subText.enabled ? subSize * 1.35 : 0;
-  const copyHeight = lines.length * lineHeight + (subHeight ? subHeight + 9 : 0);
   const textAreaWidth = compact && state.cta.enabled ? contentWidth * 0.68 : contentWidth;
+  ctx.font = `${state.headline.bold ? 700 : 400} ${headlineSize}px ${FONT_FAMILY}`;
+  const lines = wrapText(ctx, state.headline.text, textAreaWidth);
+  ctx.font = `400 ${subSize}px ${FONT_FAMILY}`;
+  const subLines = state.subText.enabled ? wrapText(ctx, state.subText.text, textAreaWidth) : [];
+  const subLineHeight = subSize * 1.35;
+  const subHeight = subLines.length * subLineHeight;
+  const copyHeight = lines.length * lineHeight + (subHeight ? subHeight + 9 : 0);
   const top = compact ? (height - copyHeight) / 2 : padding;
 
   ctx.textBaseline = 'top';
@@ -63,8 +84,10 @@ export function drawBanner(ctx: CanvasRenderingContext2D, state: CreativeState, 
   if (state.subText.enabled) {
     ctx.font = `400 ${subSize}px ${FONT_FAMILY}`;
     ctx.fillStyle = state.subText.color;
-    if (ctx.measureText(state.subText.text).width > textAreaWidth) overflow = true;
-    ctx.fillText(state.subText.text, textX, top + lines.length * lineHeight + 9);
+    subLines.forEach((line, index) => {
+      if (ctx.measureText(line).width > textAreaWidth) overflow = true;
+      ctx.fillText(line, textX, top + lines.length * lineHeight + 9 + index * subLineHeight);
+    });
   }
 
   if (state.cta.enabled) {

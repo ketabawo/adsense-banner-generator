@@ -43,6 +43,10 @@ export function parseAdvice(value: unknown): CampaignAdvice {
   return { summary: data.summary, observations: data.observations as string[], limitations: data.limitations as string[], recommendations };
 }
 export async function generateAdvice(context: object): Promise<CampaignAdvice> {
+  return generateStructuredResponse(context, instructions, adviceSchema, 'campaign_advice', parseAdvice);
+}
+
+export async function generateStructuredResponse<T>(context: object, prompt: string, schema: object, name: string, parse: (value: unknown) => T): Promise<T> {
   requireAssistantConfig();
   let response: Response;
   try {
@@ -50,7 +54,7 @@ export async function generateAdvice(context: object): Promise<CampaignAdvice> {
       method: 'POST', redirect: 'error', signal: AbortSignal.timeout(45000),
       headers: { authorization: `Bearer ${env.OPENAI_API_KEY!.trim()}`, 'content-type': 'application/json' },
       body: JSON.stringify({ model: env.OPENAI_MODEL?.trim() || 'gpt-4.1-mini', store: false, max_output_tokens: 2400,
-        instructions, input: JSON.stringify(context), text: { format: { type: 'json_schema', name: 'campaign_advice', strict: true, schema: adviceSchema } } })
+        instructions: prompt, input: JSON.stringify(context), text: { format: { type: 'json_schema', name, strict: true, schema } } })
     });
   } catch { throw new AssistantError('AIとの通信が完了しませんでした。時間をおいて再度お試しください。', 502); }
   // Provider bodies may contain private information; never forward or log them.
@@ -63,6 +67,6 @@ export async function generateAdvice(context: object): Promise<CampaignAdvice> {
     const content = data.output.filter((item: { type?: string }) => item.type === 'message').flatMap((item: { content?: unknown[] }) => item.content ?? []);
     if (content.some((item: { type?: string }) => item.type === 'refusal')) throw new Error();
     const output = content.filter((item: { type?: string }) => item.type === 'output_text').map((item: { text?: string }) => item.text ?? '').join('');
-    return parseAdvice(JSON.parse(output));
+    return parse(JSON.parse(output));
   } catch { throw new AssistantError('AIの回答が未完了、または読み取れませんでした。質問を短くして再度お試しください。', 502); }
 }

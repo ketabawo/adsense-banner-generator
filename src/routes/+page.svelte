@@ -6,6 +6,8 @@
   let accountEmail = $state('');
   let adsConnectionKey = $state('');
   import BannerEditor from '$lib/components/BannerEditor.svelte';
+  import CreativeAssistant from '$lib/components/CreativeAssistant.svelte';
+  import { applyCopyProposal } from '$lib/creative/copy';
   import BannerPreview from '$lib/components/BannerPreview.svelte';
   import CampaignSetup from '$lib/components/CampaignSetup.svelte';
   import CampaignList from '$lib/components/CampaignList.svelte';
@@ -25,7 +27,7 @@
   import type { Campaign, CampaignDraft, GoogleAdsDraft } from '$lib/types/campaign';
   import type { CreativeMode, CreativeSize, CreativeSource, CreativeVariant, LibraryCreative, UploadedCreativeAsset } from '$lib/types/creative';
 
-  // Manual controls and future AI commands must update this same state object.
+  // Manual controls and AI copy proposals update this same state object.
   let creative = $state(createDefaultCreativeState());
   let variants = $state<CreativeVariant[]>([]);
   let activeVariantId = $state('base');
@@ -544,6 +546,11 @@
     <CreativeSourceSelector mode={creativeMode} onSelect={selectCreativeMode} />
     {#if creativeMode === 'studio'}
       <CreativeVariants {variants} activeId={activeVariantId} currentState={creative} savedCreatives={libraryCreatives} onSelect={selectVariant} onAdd={addVariant} onImport={importVariant} onRemove={removeVariant} />
+      {#key creative}
+        {#key accountEmail}
+          <CreativeAssistant {creative} signedIn={!!accountEmail} onApply={(before, proposal) => applyCopyProposal(creative, before, proposal)} />
+        {/key}
+      {/key}
       <div class="workspace">
         <BannerEditor creativeState={creative} {imageError} {imageGenerating} onImageUpload={handleImageUpload} onGenerateImage={generateBackgroundImage} />
         <BannerPreview {creative} {backgroundImage} />
